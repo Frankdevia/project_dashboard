@@ -48,6 +48,10 @@ app.post('/api/projects', (req, res) => {
   p.pct = Math.max(0, Math.min(100, Math.round(Number(p.pct) || 0)));
   p.hours = Math.max(0, Math.round(Number(p.hours) || 0));
   p.dep = p.dep || '';
+  p.lider = p.lider || '';
+  p.descripcion = p.descripcion || '';
+  p.fechaInicio = p.fechaInicio || '';
+  p.fechaFin = p.fechaFin || '';
   projects.push(p);
   writeProjects(projects);
   res.json(p);
@@ -63,6 +67,10 @@ app.patch('/api/projects/:id', (req, res) => {
   if (updates.dep !== undefined) projects[idx].dep = updates.dep;
   if (updates.pct !== undefined) projects[idx].pct = Math.max(0, Math.min(100, Math.round(Number(updates.pct) || 0)));
   if (updates.hours !== undefined) projects[idx].hours = Math.max(0, Math.round(Number(updates.hours) || 0));
+  if (updates.lider !== undefined) projects[idx].lider = updates.lider;
+  if (updates.descripcion !== undefined) projects[idx].descripcion = updates.descripcion;
+  if (updates.fechaInicio !== undefined) projects[idx].fechaInicio = updates.fechaInicio;
+  if (updates.fechaFin !== undefined) projects[idx].fechaFin = updates.fechaFin;
   writeProjects(projects);
   res.json(projects[idx]);
 });

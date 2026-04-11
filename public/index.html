@@ -61,10 +61,22 @@
   .add-form input::placeholder { color: var(--text-dim); }
   .add-form input[type="text"] { flex: 1; min-width: 140px; }
   .add-form input[type="number"] { width: 90px; }
+  .add-form select { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.65rem 1rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem; outline: none; transition: border-color 0.2s; min-width: 140px; cursor: pointer; }
+  .add-form select:focus { border-color: var(--border-focus); }
+  .add-form textarea { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.65rem 1rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem; outline: none; transition: border-color 0.2s; flex: 1; min-width: 200px; resize: vertical; min-height: 60px; }
+  .add-form textarea:focus { border-color: var(--border-focus); }
+  .add-form textarea::placeholder { color: var(--text-dim); }
+  .add-form input[type="date"] { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.65rem 1rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem; outline: none; transition: border-color 0.2s; min-width: 140px; }
+  .add-form input[type="date"]:focus { border-color: var(--border-focus); }
   .add-form button { background: var(--accent); color: #000; border: none; border-radius: var(--radius-sm); padding: 0.65rem 1.4rem; font-family: var(--font-body); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s, transform 0.1s; }
   .add-form button:hover { opacity: 0.85; }
   .add-form button:active { transform: scale(0.97); }
   .add-form button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .filters { max-width: 1200px; margin: 0 auto; padding: 0 2rem 1.5rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filters label { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; }
+  .filters select { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.9rem; color: var(--text); font-family: var(--font-body); font-size: 0.85rem; outline: none; transition: border-color 0.2s; cursor: pointer; }
+  .filters select:focus { border-color: var(--border-focus); }
 
   .grid { max-width: 1200px; margin: 0 auto; padding: 0 2rem 3rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
 
@@ -82,9 +94,12 @@
   .card .actions button:hover { color: var(--text); background: rgba(255,255,255,0.06); }
   .card .actions button.del:hover { color: var(--red); }
 
-  .card .meta { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between; gap: 6px; }
+  .card .meta { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; }
+  .card .meta-row { display: flex; justify-content: space-between; gap: 6px; align-items: center; }
   .card .meta span { display: flex; align-items: center; gap: 4px; }
   .card .meta .hours-val { color: var(--green); font-weight: 600; }
+  .card .lider-badge { display: inline-block; background: rgba(88,166,255,0.15); color: var(--accent); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+  .card .desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4; max-height: 3.2em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
   .chart-section { max-width: 1200px; margin: 0 auto; padding: 0 2rem 3rem; }
   .chart-section h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; color: var(--text); margin-bottom: 1rem; letter-spacing: -0.01em; }
@@ -119,6 +134,11 @@
   .modal .field input { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.9rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
   .modal .field input:focus { border-color: var(--accent); }
   .modal .field input::placeholder { color: var(--text-dim); }
+  .modal .field select { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.9rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem; outline: none; transition: border-color 0.2s; cursor: pointer; }
+  .modal .field select:focus { border-color: var(--accent); }
+  .modal .field textarea { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.9rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem; outline: none; transition: border-color 0.2s; resize: vertical; min-height: 80px; }
+  .modal .field textarea:focus { border-color: var(--accent); }
+  .modal .field textarea::placeholder { color: var(--text-dim); }
   .modal .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.5rem; }
   .modal .btn-row button { border: none; border-radius: var(--radius-sm); padding: 0.55rem 1.3rem; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
   .modal .btn-row button:active { transform: scale(0.97); }
@@ -155,10 +175,39 @@
 
 <div class="add-form">
   <input type="text" id="nameIn" placeholder="Nombre del proyecto" />
+  <select id="liderIn">
+    <option value="">Seleccionar líder</option>
+    <option value="Jorge Agudelo">Jorge Agudelo</option>
+    <option value="Steven Solano">Steven Solano</option>
+    <option value="Isaac Gomez">Isaac Gomez</option>
+    <option value="Brian Escobar">Brian Escobar</option>
+  </select>
   <input type="text" id="depIn" placeholder="Dependencia" style="min-width:140px;" />
+  <textarea id="descIn" placeholder="Descripción"></textarea>
+  <input type="date" id="fechaInicioIn" placeholder="Fecha inicio" />
+  <input type="date" id="fechaFinIn" placeholder="Fecha fin" />
   <input type="number" id="pctIn" min="0" max="100" step="1" placeholder="%" />
   <input type="number" id="hoursIn" min="0" step="1" placeholder="Horas ahorradas" style="width:140px;" />
   <button id="addBtn">+ Agregar</button>
+</div>
+
+<div class="filters">
+  <label>Filtrar por líder:</label>
+  <select id="filterLider">
+    <option value="">Todos</option>
+    <option value="Jorge Agudelo">Jorge Agudelo</option>
+    <option value="Steven Solano">Steven Solano</option>
+    <option value="Isaac Gomez">Isaac Gomez</option>
+    <option value="Brian Escobar">Brian Escobar</option>
+  </select>
+  <label>Filtrar por estado:</label>
+  <select id="filterEstado">
+    <option value="">Todos</option>
+    <option value="Inicio">Inicio</option>
+    <option value="En progreso">En progreso</option>
+    <option value="Avanzado">Avanzado</option>
+    <option value="Completado">Completado</option>
+  </select>
 </div>
 
 <div class="grid" id="grid"></div>
@@ -176,8 +225,30 @@
       <input type="text" id="editName" placeholder="Nombre del proyecto" />
     </div>
     <div class="field">
+      <label>Líder</label>
+      <select id="editLider">
+        <option value="">Seleccionar líder</option>
+        <option value="Jorge Agudelo">Jorge Agudelo</option>
+        <option value="Steven Solano">Steven Solano</option>
+        <option value="Isaac Gomez">Isaac Gomez</option>
+        <option value="Brian Escobar">Brian Escobar</option>
+      </select>
+    </div>
+    <div class="field">
       <label>Dependencia</label>
       <input type="text" id="editDep" placeholder="Dependencia" />
+    </div>
+    <div class="field">
+      <label>Descripción</label>
+      <textarea id="editDesc" placeholder="Descripción del proyecto"></textarea>
+    </div>
+    <div class="field">
+      <label>Fecha inicio</label>
+      <input type="date" id="editFechaInicio" />
+    </div>
+    <div class="field">
+      <label>Fecha fin</label>
+      <input type="date" id="editFechaFin" />
     </div>
     <div class="field">
       <label>Porcentaje</label>
@@ -221,13 +292,19 @@ let projects = [];
 
 const grid    = document.getElementById('grid');
 const nameIn  = document.getElementById('nameIn');
+const liderIn = document.getElementById('liderIn');
 const depIn   = document.getElementById('depIn');
+const descIn  = document.getElementById('descIn');
+const fechaInicioIn = document.getElementById('fechaInicioIn');
+const fechaFinIn = document.getElementById('fechaFinIn');
 const pctIn   = document.getElementById('pctIn');
 const hoursIn = document.getElementById('hoursIn');
 const subtitle = document.getElementById('subtitle');
 const summary  = document.getElementById('summary');
 const chartSection = document.getElementById('chartSection');
 const chartPanel   = document.getElementById('chartPanel');
+const filterLider = document.getElementById('filterLider');
+const filterEstado = document.getElementById('filterEstado');
 
 // ── Color helpers ──
 function colorFor(p) {
@@ -277,46 +354,82 @@ function esc(s) { const d = document.createElement('div'); d.textContent = s; re
 
 // ── Render ──
 function render() {
-  const n = projects.length;
-  summary.style.display = n ? 'flex' : 'none';
+  // Apply filters
+  const liderFilter = filterLider.value;
+  const estadoFilter = filterEstado.value;
+
+  let filteredProjects = projects;
+
+  if (liderFilter) {
+    filteredProjects = filteredProjects.filter(p => p.lider === liderFilter);
+  }
+
+  if (estadoFilter) {
+    filteredProjects = filteredProjects.filter(p => {
+      const c = colorFor(p.pct);
+      return c.label === estadoFilter;
+    });
+  }
+
+  const n = filteredProjects.length;
+  summary.style.display = projects.length ? 'flex' : 'none';
   const totalHours = projects.reduce((s, p) => s + (p.hours || 0), 0);
 
-  if (n) {
-    const avg = Math.round(projects.reduce((s, p) => s + p.pct, 0) / n);
+  if (projects.length) {
+    const avg = Math.round(projects.reduce((s, p) => s + p.pct, 0) / projects.length);
     const done = projects.filter(p => p.pct >= 100).length;
-    document.getElementById('sTotal').textContent = n;
+    document.getElementById('sTotal').textContent = projects.length;
     document.getElementById('sAvg').textContent = avg + '%';
     document.getElementById('sDone').textContent = done;
     document.getElementById('sHours').textContent = totalHours.toLocaleString();
-    subtitle.textContent = `${n} proyecto${n > 1 ? 's' : ''} · promedio ${avg}% · ${totalHours.toLocaleString()}h ahorradas`;
+    subtitle.textContent = `${projects.length} proyecto${projects.length > 1 ? 's' : ''} · promedio ${avg}% · ${totalHours.toLocaleString()}h ahorradas`;
   } else {
     subtitle.textContent = 'Sin proyectos todavía';
   }
 
   grid.innerHTML = '';
   if (!n) {
-    grid.innerHTML = `<div class="empty"><div class="icon">⊘</div>Agrega tu primer proyecto<br>para encender el tablero</div>`;
+    const msg = (liderFilter || estadoFilter)
+      ? `<div class="empty"><div class="icon">⊘</div>No hay proyectos que coincidan con los filtros</div>`
+      : `<div class="empty"><div class="icon">⊘</div>Agrega tu primer proyecto<br>para encender el tablero</div>`;
+    grid.innerHTML = msg;
     chartSection.style.display = 'none';
     return;
   }
 
-  projects.forEach((p, i) => {
+  filteredProjects.forEach((p, i) => {
     const c = colorFor(p.pct);
     const card = document.createElement('div');
     card.className = 'card';
     card.style.animationDelay = `${i * 0.05}s`;
+
+    const realIndex = projects.findIndex(proj => proj.id === p.id);
+    const liderHTML = p.lider ? `<div class="lider-badge">${esc(p.lider)}</div>` : '';
+    const descHTML = p.descripcion ? `<div class="desc">${esc(p.descripcion)}</div>` : '';
+    const fechasHTML = (p.fechaInicio || p.fechaFin) ? `
+      <div class="meta-row">
+        <span style="font-size: 0.7rem;">${p.fechaInicio ? '📅 ' + p.fechaInicio : ''}</span>
+        <span style="font-size: 0.7rem;">${p.fechaFin ? '🏁 ' + p.fechaFin : ''}</span>
+      </div>
+    ` : '';
+
     card.innerHTML = `
       <div class="actions">
-        <button class="edit" title="Editar" data-i="${i}">✎</button>
+        <button class="edit" title="Editar" data-i="${realIndex}">✎</button>
         <button class="del" title="Eliminar" data-id="${p.id}">✕</button>
       </div>
       ${gaugeSVG(p.pct)}
       <div class="name">${esc(p.name)}</div>
+      ${liderHTML}
       <div class="pct-label" style="color:${c.text}">${Math.round(p.pct)}%</div>
       <div class="status-tag" style="background:${c.tag};color:${c.text}">${c.label}</div>
+      ${descHTML}
       <div class="meta">
-        <span>${p.dep ? esc(p.dep) : '—'}</span>
-        <span><span class="hours-val">${(p.hours || 0).toLocaleString()}h</span> ahorradas</span>
+        <div class="meta-row">
+          <span>${p.dep ? esc(p.dep) : '—'}</span>
+          <span><span class="hours-val">${(p.hours || 0).toLocaleString()}h</span> ahorradas</span>
+        </div>
+        ${fechasHTML}
       </div>
     `;
     grid.appendChild(card);
@@ -348,7 +461,11 @@ function render() {
 // ── Edit modal ──
 const editOverlay = document.getElementById('editOverlay');
 const editName    = document.getElementById('editName');
+const editLider   = document.getElementById('editLider');
 const editDep     = document.getElementById('editDep');
+const editDesc    = document.getElementById('editDesc');
+const editFechaInicio = document.getElementById('editFechaInicio');
+const editFechaFin = document.getElementById('editFechaFin');
 const editPct     = document.getElementById('editPct');
 const editHours   = document.getElementById('editHours');
 const modalTitle  = document.getElementById('modalTitle');
@@ -359,7 +476,11 @@ function openEditModal(i) {
   const p = projects[i];
   modalTitle.textContent = 'Editar: ' + p.name;
   editName.value  = p.name;
+  editLider.value = p.lider || '';
   editDep.value   = p.dep || '';
+  editDesc.value  = p.descripcion || '';
+  editFechaInicio.value = p.fechaInicio || '';
+  editFechaFin.value = p.fechaFin || '';
   editPct.value   = p.pct;
   editHours.value = p.hours || 0;
   editOverlay.classList.add('open');
@@ -376,7 +497,11 @@ async function saveEdit() {
   const p = projects[editingIndex];
   const updates = {
     name:  editName.value.trim() || p.name,
+    lider: editLider.value,
     dep:   editDep.value.trim(),
+    descripcion: editDesc.value.trim(),
+    fechaInicio: editFechaInicio.value,
+    fechaFin: editFechaFin.value,
     pct:   Math.max(0, Math.min(100, Math.round(Number(editPct.value) || 0))),
     hours: Math.max(0, Math.round(Number(editHours.value) || 0))
   };
@@ -445,17 +570,22 @@ function renderChart() {
 async function addProject() {
   const name = nameIn.value.trim();
   if (!name) { nameIn.focus(); return; }
+  const lider = liderIn.value;
   const dep = depIn.value.trim();
+  const descripcion = descIn.value.trim();
+  const fechaInicio = fechaInicioIn.value;
+  const fechaFin = fechaFinIn.value;
   const pct = Math.max(0, Math.min(100, Math.round(Number(pctIn.value) || 0)));
   const hours = Math.max(0, Math.round(Number(hoursIn.value) || 0));
 
   document.getElementById('addBtn').disabled = true;
   try {
     showSync('syncing', 'Agregando...');
-    const p = await api('POST', '', { name, dep, pct, hours });
+    const p = await api('POST', '', { name, lider, dep, descripcion, fechaInicio, fechaFin, pct, hours });
     projects.push(p);
     showSync('ok', 'Agregado');
-    nameIn.value = ''; depIn.value = ''; pctIn.value = ''; hoursIn.value = '';
+    nameIn.value = ''; liderIn.value = ''; depIn.value = ''; descIn.value = '';
+    fechaInicioIn.value = ''; fechaFinIn.value = ''; pctIn.value = ''; hoursIn.value = '';
     nameIn.focus();
     render();
   } catch (err) {
@@ -465,7 +595,11 @@ async function addProject() {
 }
 
 document.getElementById('addBtn').addEventListener('click', addProject);
-[nameIn, depIn, pctIn, hoursIn].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') addProject(); }));
+[nameIn, liderIn, depIn, pctIn, hoursIn, fechaInicioIn, fechaFinIn].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') addProject(); }));
+
+// ── Filters ──
+filterLider.addEventListener('change', render);
+filterEstado.addEventListener('change', render);
 
 // ── Auto-refresh: poll every 15s so all team members see updates ──
 async function loadProjects() {
