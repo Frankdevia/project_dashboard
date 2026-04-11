@@ -147,6 +147,29 @@
   .modal .btn-save { background: var(--accent); color: #000; }
   .modal .btn-save:hover { opacity: 0.85; }
 
+  .detail-modal { max-width: 600px; }
+  .detail-header { text-align: center; padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+  .detail-header .gauge-container { display: flex; justify-content: center; margin-bottom: 1rem; }
+  .detail-header h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; margin-bottom: 0.5rem; color: var(--text); }
+  .detail-header .project-lider { display: inline-block; background: rgba(88,166,255,0.15); color: var(--accent); padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .detail-header .project-status { display: inline-block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.3rem 0.8rem; border-radius: 6px; }
+  .detail-section { margin-bottom: 1.5rem; }
+  .detail-section h4 { font-family: var(--font-display); font-weight: 600; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .detail-section p { color: var(--text); font-size: 0.95rem; line-height: 1.6; margin: 0; }
+  .detail-section .empty-value { color: var(--text-dim); font-style: italic; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  .detail-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem; }
+  .detail-item label { display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.3rem; }
+  .detail-item .value { font-size: 1rem; color: var(--text); font-weight: 500; }
+  .detail-item .value.highlight { color: var(--green); font-weight: 700; font-size: 1.2rem; font-family: var(--font-display); }
+  .detail-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border); }
+  .detail-actions button { border: none; border-radius: var(--radius-sm); padding: 0.6rem 1.4rem; font-family: var(--font-body); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+  .detail-actions button:active { transform: scale(0.97); }
+  .detail-actions .btn-edit { background: var(--accent); color: #000; }
+  .detail-actions .btn-edit:hover { opacity: 0.85; }
+  .detail-actions .btn-close { background: transparent; color: var(--text-muted); border: 1px solid var(--border) !important; }
+  .detail-actions .btn-close:hover { color: var(--text); border-color: var(--border-focus) !important; }
+
   .sync-indicator { position: fixed; bottom: 1rem; right: 1rem; font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-body); z-index: 100; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.4rem 0.8rem; transition: opacity 0.3s; }
   .sync-indicator.syncing { color: var(--amber); }
   .sync-indicator.error { color: var(--red); }
@@ -261,6 +284,54 @@
     <div class="btn-row">
       <button class="btn-cancel" id="editCancel">Cancelar</button>
       <button class="btn-save" id="editSave">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="detailOverlay">
+  <div class="modal detail-modal">
+    <div class="detail-header">
+      <div class="gauge-container" id="detailGauge"></div>
+      <h3 id="detailName">Nombre del proyecto</h3>
+      <div id="detailLiderBadge"></div>
+      <div id="detailStatusBadge"></div>
+    </div>
+
+    <div class="detail-grid">
+      <div class="detail-item">
+        <label>Progreso</label>
+        <div class="value highlight" id="detailPct">0%</div>
+      </div>
+      <div class="detail-item">
+        <label>Horas ahorradas</label>
+        <div class="value highlight" id="detailHours">0h</div>
+      </div>
+    </div>
+
+    <div class="detail-section" id="detailDescSection">
+      <h4>Descripción</h4>
+      <p id="detailDesc"></p>
+    </div>
+
+    <div class="detail-section" id="detailDepSection">
+      <h4>Dependencia</h4>
+      <p id="detailDep"></p>
+    </div>
+
+    <div class="detail-grid">
+      <div class="detail-item" id="detailFechaInicioSection">
+        <label>📅 Fecha de inicio</label>
+        <div class="value" id="detailFechaInicio">—</div>
+      </div>
+      <div class="detail-item" id="detailFechaFinSection">
+        <label>🏁 Fecha de finalización</label>
+        <div class="value" id="detailFechaFin">—</div>
+      </div>
+    </div>
+
+    <div class="detail-actions">
+      <button class="btn-close" id="detailClose">Cerrar</button>
+      <button class="btn-edit" id="detailEdit">✎ Editar</button>
     </div>
   </div>
 </div>
@@ -402,6 +473,7 @@ function render() {
     const card = document.createElement('div');
     card.className = 'card';
     card.style.animationDelay = `${i * 0.05}s`;
+    card.style.cursor = 'pointer';
 
     const realIndex = projects.findIndex(proj => proj.id === p.id);
     const liderHTML = p.lider ? `<div class="lider-badge">${esc(p.lider)}</div>` : '';
@@ -432,6 +504,14 @@ function render() {
         ${fechasHTML}
       </div>
     `;
+
+    // Add click handler to open detail modal
+    card.addEventListener('click', (e) => {
+      // Don't open detail if clicking on action buttons
+      if (e.target.closest('.actions')) return;
+      openDetailModal(realIndex);
+    });
+
     grid.appendChild(card);
   });
 
@@ -520,8 +600,104 @@ async function saveEdit() {
 document.getElementById('editCancel').addEventListener('click', closeEditModal);
 document.getElementById('editSave').addEventListener('click', saveEdit);
 editOverlay.addEventListener('click', (e) => { if (e.target === editOverlay) closeEditModal(); });
+
+// ── Detail modal ──
+const detailOverlay = document.getElementById('detailOverlay');
+let detailProjectIndex = -1;
+
+function openDetailModal(i) {
+  detailProjectIndex = i;
+  const p = projects[i];
+  const c = colorFor(p.pct);
+
+  // Set gauge
+  document.getElementById('detailGauge').innerHTML = gaugeSVG(p.pct);
+
+  // Set header
+  document.getElementById('detailName').textContent = p.name;
+
+  const liderBadge = document.getElementById('detailLiderBadge');
+  if (p.lider) {
+    liderBadge.innerHTML = `<span class="project-lider">${esc(p.lider)}</span>`;
+  } else {
+    liderBadge.innerHTML = '';
+  }
+
+  const statusBadge = document.getElementById('detailStatusBadge');
+  statusBadge.innerHTML = `<div class="project-status" style="background:${c.tag};color:${c.text}">${c.label}</div>`;
+
+  // Set progress and hours
+  document.getElementById('detailPct').textContent = Math.round(p.pct) + '%';
+  document.getElementById('detailPct').style.color = c.text;
+  document.getElementById('detailHours').textContent = (p.hours || 0).toLocaleString() + 'h';
+
+  // Set description
+  const descSection = document.getElementById('detailDescSection');
+  const descText = document.getElementById('detailDesc');
+  if (p.descripcion) {
+    descText.textContent = p.descripcion;
+    descText.classList.remove('empty-value');
+    descSection.style.display = 'block';
+  } else {
+    descText.textContent = 'Sin descripción';
+    descText.classList.add('empty-value');
+    descSection.style.display = 'block';
+  }
+
+  // Set dependencia
+  const depSection = document.getElementById('detailDepSection');
+  const depText = document.getElementById('detailDep');
+  if (p.dep) {
+    depText.textContent = p.dep;
+    depText.classList.remove('empty-value');
+    depSection.style.display = 'block';
+  } else {
+    depText.textContent = 'Sin dependencia asignada';
+    depText.classList.add('empty-value');
+    depSection.style.display = 'block';
+  }
+
+  // Set dates
+  const fechaInicioVal = document.getElementById('detailFechaInicio');
+  if (p.fechaInicio) {
+    fechaInicioVal.textContent = p.fechaInicio;
+    fechaInicioVal.classList.remove('empty-value');
+  } else {
+    fechaInicioVal.textContent = '—';
+    fechaInicioVal.classList.add('empty-value');
+  }
+
+  const fechaFinVal = document.getElementById('detailFechaFin');
+  if (p.fechaFin) {
+    fechaFinVal.textContent = p.fechaFin;
+    fechaFinVal.classList.remove('empty-value');
+  } else {
+    fechaFinVal.textContent = '—';
+    fechaFinVal.classList.add('empty-value');
+  }
+
+  detailOverlay.classList.add('open');
+}
+
+function closeDetailModal() {
+  detailOverlay.classList.remove('open');
+  detailProjectIndex = -1;
+}
+
+document.getElementById('detailClose').addEventListener('click', closeDetailModal);
+document.getElementById('detailEdit').addEventListener('click', () => {
+  if (detailProjectIndex >= 0) {
+    closeDetailModal();
+    openEditModal(detailProjectIndex);
+  }
+});
+detailOverlay.addEventListener('click', (e) => { if (e.target === detailOverlay) closeDetailModal(); });
+
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && editOverlay.classList.contains('open')) closeEditModal();
+  if (e.key === 'Escape') {
+    if (editOverlay.classList.contains('open')) closeEditModal();
+    else if (detailOverlay.classList.contains('open')) closeDetailModal();
+  }
   if (e.key === 'Enter' && editOverlay.classList.contains('open')) { e.preventDefault(); saveEdit(); }
 });
 
