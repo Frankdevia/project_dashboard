@@ -51,10 +51,13 @@
   .header-left h1 { font-family: var(--font-display); font-weight: 700; font-size: 2rem; letter-spacing: -0.03em; color: var(--text); }
   .header-left h1 span { color: var(--text-dim); font-weight: 300; }
   .header-left p { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
-  .nav-links { display: flex; gap: 10px; }
-  .nav-links a { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 1.2rem; color: var(--text); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+  .nav-links a { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 1.2rem; color: var(--text); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+  .nav-links a svg { opacity: 0.7; transition: opacity 0.2s; }
   .nav-links a:hover { background: var(--bg-card-hover); border-color: var(--border-focus); }
+  .nav-links a:hover svg { opacity: 1; }
   .nav-links a.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .nav-links a.active svg { opacity: 1; }
 
   .summary { display: flex; gap: 1rem; max-width: 1200px; margin: 0 auto; padding: 0 2rem 1.5rem; flex-wrap: wrap; }
   .stat-pill { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 1.2rem; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; }
@@ -105,6 +108,51 @@
   .card .meta .hours-val { color: var(--green); font-weight: 600; }
   .card .lider-badge { display: inline-block; background: rgba(88,166,255,0.15); color: var(--accent); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
   .card .desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4; max-height: 3.2em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  .card .leader-avatar {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(88,166,255,0.15);
+    border: 2px solid transparent;
+    background-image: linear-gradient(var(--bg-card), var(--bg-card)),
+                      linear-gradient(135deg, rgba(88,166,255,0.6), rgba(139,148,158,0.4));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 1.2rem;
+  }
+
+  .card .leader-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .card .leader-avatar.no-photo {
+    background: rgba(88,166,255,0.05);
+    background-image: linear-gradient(var(--bg-card), var(--bg-card)),
+                      linear-gradient(135deg, rgba(88,166,255,0.3), rgba(139,148,158,0.2));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .card .leader-avatar.no-photo::after {
+    content: '';
+    display: block;
+    width: 20px;
+    height: 20px;
+    background: currentColor;
+    opacity: 0.4;
+    -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>') center/contain no-repeat;
+    mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>') center/contain no-repeat;
+  }
 
   .chart-section { max-width: 1200px; margin: 0 auto; padding: 0 2rem 3rem; }
   .chart-section h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; color: var(--text); margin-bottom: 1rem; letter-spacing: -0.01em; }
@@ -195,8 +243,40 @@
     <p id="subtitle">Cargando...</p>
   </div>
   <div class="nav-links">
-    <a href="index.html" class="active">📊 Dashboard</a>
-    <a href="gantt.html">📅 Gantt</a>
+    <a href="index.html" class="active">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+      Dashboard
+    </a>
+    <a href="gantt.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+      Gantt
+    </a>
+    <a href="by-leader.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+      Por Líder
+    </a>
+    <a href="leaders.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+      Líderes
+    </a>
   </div>
 </div>
 
@@ -331,11 +411,11 @@
 
     <div class="detail-grid">
       <div class="detail-item" id="detailFechaInicioSection">
-        <label>📅 Fecha de inicio</label>
+        <label>Fecha de inicio</label>
         <div class="value" id="detailFechaInicio">—</div>
       </div>
       <div class="detail-item" id="detailFechaFinSection">
-        <label>🏁 Fecha de finalización</label>
+        <label>Fecha de finalización</label>
         <div class="value" id="detailFechaFin">—</div>
       </div>
     </div>
@@ -371,6 +451,7 @@ function showSync(cls, msg) {
 
 // ── State ──
 let projects = [];
+let leaders = [];
 
 const grid    = document.getElementById('grid');
 const nameIn  = document.getElementById('nameIn');
@@ -491,10 +572,21 @@ function render() {
     const descHTML = p.descripcion ? `<div class="desc">${esc(p.descripcion)}</div>` : '';
     const fechasHTML = (p.fechaInicio || p.fechaFin) ? `
       <div class="meta-row">
-        <span style="font-size: 0.7rem;">${p.fechaInicio ? '📅 ' + p.fechaInicio : ''}</span>
-        <span style="font-size: 0.7rem;">${p.fechaFin ? '🏁 ' + p.fechaFin : ''}</span>
+        <span style="font-size: 0.7rem; opacity: 0.7;">${p.fechaInicio ? 'Inicio: ' + p.fechaInicio : ''}</span>
+        <span style="font-size: 0.7rem; opacity: 0.7;">${p.fechaFin ? 'Fin: ' + p.fechaFin : ''}</span>
       </div>
     ` : '';
+
+    // Get leader photo
+    let leaderAvatarHTML = '';
+    if (p.lider) {
+      const leader = leaders.find(l => l.name === p.lider);
+      if (leader && leader.photo) {
+        leaderAvatarHTML = `<div class="leader-avatar" title="${esc(p.lider)}"><img src="${leader.photo}" alt="${esc(p.lider)}" /></div>`;
+      } else {
+        leaderAvatarHTML = `<div class="leader-avatar no-photo" title="${esc(p.lider)}"></div>`;
+      }
+    }
 
     card.innerHTML = `
       <div class="actions">
@@ -514,6 +606,7 @@ function render() {
         </div>
         ${fechasHTML}
       </div>
+      ${leaderAvatarHTML}
     `;
 
     // Add click handler to open detail modal
@@ -788,6 +881,28 @@ document.getElementById('addBtn').addEventListener('click', addProject);
 filterLider.addEventListener('change', render);
 filterEstado.addEventListener('change', render);
 
+// ── Load leaders ──
+async function loadLeaders() {
+  try {
+    const res = await fetch('/api/leaders');
+    leaders = await res.json();
+    populateLeaderDropdowns();
+  } catch (err) {
+    console.error('Error loading leaders:', err);
+  }
+}
+
+function populateLeaderDropdowns() {
+  const dropdowns = [liderIn, editLider, filterLider];
+  dropdowns.forEach(dropdown => {
+    const currentValue = dropdown.value;
+    const options = leaders.map(l => `<option value="${l.name}">${l.name}</option>`).join('');
+    const placeholder = dropdown.id === 'filterLider' ? '<option value="">Todos</option>' : '<option value="">Seleccionar líder</option>';
+    dropdown.innerHTML = placeholder + options;
+    dropdown.value = currentValue;
+  });
+}
+
 // ── Auto-refresh: poll every 15s so all team members see updates ──
 async function loadProjects() {
   try {
@@ -800,8 +915,10 @@ async function loadProjects() {
   }
 }
 
+loadLeaders();
 loadProjects();
 setInterval(loadProjects, 15000);
+setInterval(loadLeaders, 30000);
 </script>
 </body>
 </html>

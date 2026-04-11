@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión de Líderes - Project Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e1117;
+    --bg-card: #161b22;
+    --bg-card-hover: #1c2129;
+    --bg-input: #0d1117;
+    --border: rgba(255,255,255,0.08);
+    --border-focus: rgba(255,255,255,0.2);
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #484f58;
+    --accent: #58a6ff;
+    --red: #f85149;
+    --green: #3fb950;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --font-display: 'Outfit', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .header {
+    padding: 2.5rem 2rem 1.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .header-left { flex: 1; }
+  .header-left h1 { font-family: var(--font-display); font-weight: 700; font-size: 2rem; letter-spacing: -0.03em; color: var(--text); }
+  .header-left h1 span { color: var(--text-dim); font-weight: 300; }
+  .header-left p { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
+
+  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+  .nav-links a { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 1.2rem; color: var(--text); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+  .nav-links a svg { opacity: 0.7; transition: opacity 0.2s; }
+  .nav-links a:hover { background: var(--bg-card-hover); border-color: var(--border-focus); }
+  .nav-links a:hover svg { opacity: 1; }
+  .nav-links a.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .nav-links a.active svg { opacity: 1; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 2rem 3rem; }
+
+  .add-leader-form {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .add-leader-form h2 {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    color: var(--text);
+  }
+
+  .form-row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+  }
+
+  .form-field {
+    flex: 1;
+  }
+
+  .form-field label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .form-field input[type="text"] {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 1rem;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-field input[type="text"]:focus { border-color: var(--border-focus); }
+  .form-field input[type="text"]::placeholder { color: var(--text-dim); }
+
+  .add-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 1.4rem;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .add-btn:hover { opacity: 0.85; }
+  .add-btn:active { transform: scale(0.97); }
+
+  .leaders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+  .leader-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+    transition: all 0.2s;
+  }
+
+  .leader-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-focus);
+  }
+
+  .leader-photo {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: rgba(88,166,255,0.1);
+    border: 3px solid transparent;
+    background-image: linear-gradient(var(--bg-card), var(--bg-card)),
+                      linear-gradient(135deg, rgba(88,166,255,0.8), rgba(139,148,158,0.5));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: var(--accent);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .leader-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .leader-photo.no-photo {
+    background: rgba(88,166,255,0.08);
+    background-image: linear-gradient(var(--bg-card), var(--bg-card)),
+                      linear-gradient(135deg, rgba(88,166,255,0.4), rgba(139,148,158,0.3));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .leader-photo.no-photo::after {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 40px;
+    background: currentColor;
+    opacity: 0.3;
+    -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>') center/contain no-repeat;
+    mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>') center/contain no-repeat;
+  }
+
+  .leader-name {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .leader-actions {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .leader-actions button {
+    flex: 1;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 1rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+
+  .leader-actions button svg {
+    opacity: 0.8;
+  }
+
+  .btn-upload {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .btn-upload:hover { opacity: 0.85; }
+
+  .btn-delete {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--red) !important;
+  }
+
+  .btn-delete:hover {
+    background: var(--red);
+    color: #fff;
+  }
+
+  .file-input {
+    display: none;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+
+  .empty-state .icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.3;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Gestión de Líderes <span>/ administración</span></h1>
+    <p id="subtitle">Administra los líderes de proyecto</p>
+  </div>
+  <div class="nav-links">
+    <a href="index.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+      Dashboard
+    </a>
+    <a href="gantt.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+      Gantt
+    </a>
+    <a href="by-leader.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+      Por Líder
+    </a>
+    <a href="leaders.html" class="active">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+      Líderes
+    </a>
+  </div>
+</div>
+
+<div class="container">
+  <div class="add-leader-form">
+    <h2>Agregar Nuevo Líder</h2>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Nombre del líder</label>
+        <input type="text" id="leaderNameInput" placeholder="Ej: María González" />
+      </div>
+      <button class="add-btn" id="addLeaderBtn">+ Agregar Líder</button>
+    </div>
+  </div>
+
+  <div class="leaders-grid" id="leadersGrid"></div>
+</div>
+
+<script>
+const API = '/api/leaders';
+let leaders = [];
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function loadLeaders() {
+  try {
+    const res = await fetch(API);
+    leaders = await res.json();
+    renderLeaders();
+  } catch (err) {
+    console.error('Error loading leaders:', err);
+  }
+}
+
+function renderLeaders() {
+  const grid = document.getElementById('leadersGrid');
+
+  if (leaders.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.3; margin-bottom: 1rem;">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <div>No hay líderes registrados</div>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = leaders.map(leader => `
+    <div class="leader-card">
+      <div class="leader-photo ${leader.photo ? '' : 'no-photo'}">
+        ${leader.photo ? `<img src="${leader.photo}" alt="${esc(leader.name)}" />` : ''}
+      </div>
+      <div class="leader-name">${esc(leader.name)}</div>
+      <div class="leader-actions">
+        <button class="btn-upload" onclick="uploadPhoto('${leader.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          ${leader.photo ? 'Cambiar Foto' : 'Subir Foto'}
+        </button>
+        <button class="btn-delete" onclick="deleteLeader('${leader.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
+      <input type="file" class="file-input" id="file-${leader.id}" accept="image/*" onchange="handleFileSelect(event, '${leader.id}')" />
+    </div>
+  `).join('');
+}
+
+async function addLeader() {
+  const nameInput = document.getElementById('leaderNameInput');
+  const name = nameInput.value.trim();
+
+  if (!name) {
+    alert('Por favor ingresa el nombre del líder');
+    return;
+  }
+
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+
+    if (!res.ok) throw new Error('Error al agregar líder');
+
+    const newLeader = await res.json();
+    leaders.push(newLeader);
+    nameInput.value = '';
+    renderLeaders();
+  } catch (err) {
+    alert('Error al agregar líder: ' + err.message);
+  }
+}
+
+function uploadPhoto(leaderId) {
+  document.getElementById(`file-${leaderId}`).click();
+}
+
+async function handleFileSelect(event, leaderId) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('photo', file);
+
+  try {
+    const res = await fetch(`${API}/${leaderId}/photo`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!res.ok) throw new Error('Error al subir foto');
+
+    const updatedLeader = await res.json();
+    const idx = leaders.findIndex(l => l.id === leaderId);
+    if (idx !== -1) {
+      leaders[idx] = updatedLeader;
+      renderLeaders();
+    }
+  } catch (err) {
+    alert('Error al subir foto: ' + err.message);
+  }
+}
+
+async function deleteLeader(leaderId) {
+  if (!confirm('¿Estás seguro de eliminar este líder?')) return;
+
+  try {
+    const res = await fetch(`${API}/${leaderId}`, {
+      method: 'DELETE'
+    });
+
+    if (!res.ok) throw new Error('Error al eliminar líder');
+
+    leaders = leaders.filter(l => l.id !== leaderId);
+    renderLeaders();
+  } catch (err) {
+    alert('Error al eliminar líder: ' + err.message);
+  }
+}
+
+document.getElementById('addLeaderBtn').addEventListener('click', addLeader);
+document.getElementById('leaderNameInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addLeader();
+});
+
+loadLeaders();
+</script>
+</body>
+</html>

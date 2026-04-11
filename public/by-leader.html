@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proyectos por Líder - Project Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e1117;
+    --bg-card: #161b22;
+    --bg-card-hover: #1c2129;
+    --bg-input: #0d1117;
+    --border: rgba(255,255,255,0.08);
+    --border-focus: rgba(255,255,255,0.2);
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #484f58;
+    --accent: #58a6ff;
+    --red: #f85149;
+    --amber: #d29922;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --font-display: 'Outfit', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .header {
+    padding: 2.5rem 2rem 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .header-left { flex: 1; }
+  .header-left h1 { font-family: var(--font-display); font-weight: 700; font-size: 2rem; letter-spacing: -0.03em; color: var(--text); }
+  .header-left h1 span { color: var(--text-dim); font-weight: 300; }
+  .header-left p { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
+
+  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+  .nav-links a { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 1.2rem; color: var(--text); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+  .nav-links a svg { opacity: 0.7; transition: opacity 0.2s; }
+  .nav-links a:hover { background: var(--bg-card-hover); border-color: var(--border-focus); }
+  .nav-links a:hover svg { opacity: 1; }
+  .nav-links a.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .nav-links a.active svg { opacity: 1; }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem 3rem;
+  }
+
+  .leaders-grid {
+    display: grid;
+    gap: 2rem;
+  }
+
+  .leader-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem;
+    transition: border-color 0.2s;
+  }
+
+  .leader-section:hover {
+    border-color: var(--border-focus);
+  }
+
+  .leader-header {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .leader-avatar-large {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: rgba(88,166,255,0.15);
+    border: 3px solid transparent;
+    background-image: linear-gradient(var(--bg-card), var(--bg-card)),
+                      linear-gradient(135deg, rgba(88,166,255,0.8), rgba(139,148,158,0.5));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 3rem;
+    flex-shrink: 0;
+  }
+
+  .leader-avatar-large img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .leader-avatar-large.no-photo {
+    background: rgba(88,166,255,0.08);
+    background-image: linear-gradient(var(--bg-card), var(--bg-card)),
+                      linear-gradient(135deg, rgba(88,166,255,0.4), rgba(139,148,158,0.3));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .leader-avatar-large.no-photo::after {
+    content: '';
+    display: block;
+    width: 50px;
+    height: 50px;
+    background: currentColor;
+    opacity: 0.3;
+    -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>') center/contain no-repeat;
+    mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>') center/contain no-repeat;
+  }
+
+  .leader-info {
+    flex: 1;
+  }
+
+  .leader-name {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 1rem;
+  }
+
+  .leader-stats {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .stat-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  .stat-value {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .stat-value.completed {
+    color: var(--green);
+  }
+
+  .stat-value.pending {
+    color: var(--amber);
+  }
+
+  .stat-value.average {
+    color: var(--accent);
+  }
+
+  .progress-ring {
+    width: 80px;
+    height: 80px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .progress-ring svg {
+    transform: rotate(-90deg);
+  }
+
+  .progress-ring-circle {
+    fill: none;
+    stroke: rgba(255,255,255,0.1);
+    stroke-width: 8;
+  }
+
+  .progress-ring-progress {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s;
+  }
+
+  .progress-ring-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .project-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .project-item:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: var(--border-focus);
+    transform: translateX(4px);
+  }
+
+  .project-status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .project-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .project-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+
+  .project-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .project-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .progress-bar {
+    width: 120px;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+
+  .progress-percent {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.9rem;
+    min-width: 45px;
+    text-align: right;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+
+  .empty-state .icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.3;
+  }
+
+  @media (max-width: 600px) {
+    .header, .container {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    .leader-header {
+      flex-direction: column;
+      text-align: center;
+    }
+    .leader-stats {
+      justify-content: center;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Vista por Líder <span>/ organización</span></h1>
+    <p id="subtitle">Proyectos agrupados por líder</p>
+  </div>
+  <div class="nav-links">
+    <a href="index.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+      Dashboard
+    </a>
+    <a href="gantt.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+      Gantt
+    </a>
+    <a href="by-leader.html" class="active">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+      Por Líder
+    </a>
+    <a href="leaders.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+      Líderes
+    </a>
+  </div>
+</div>
+
+<div class="container">
+  <div class="leaders-grid" id="leadersGrid"></div>
+</div>
+
+<script>
+const API_PROJECTS = '/api/projects';
+const API_LEADERS = '/api/leaders';
+
+let projects = [];
+let leaders = [];
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function colorFor(p) {
+  if (p >= 100) return { color: '#3fb950', label: 'Completado' };
+  if (p >= 75)  return { color: '#58a6ff', label: 'Avanzado' };
+  if (p >= 40)  return { color: '#d29922', label: 'En progreso' };
+  return { color: '#f85149', label: 'Inicio' };
+}
+
+function createProgressRing(percent) {
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percent / 100) * circumference;
+
+  return `
+    <div class="progress-ring">
+      <svg width="80" height="80">
+        <circle class="progress-ring-circle" cx="40" cy="40" r="${radius}"></circle>
+        <circle class="progress-ring-progress" cx="40" cy="40" r="${radius}"
+                style="stroke-dasharray: ${circumference}; stroke-dashoffset: ${offset};"></circle>
+      </svg>
+      <div class="progress-ring-text">${Math.round(percent)}%</div>
+    </div>
+  `;
+}
+
+async function loadData() {
+  try {
+    const [projectsRes, leadersRes] = await Promise.all([
+      fetch(API_PROJECTS),
+      fetch(API_LEADERS)
+    ]);
+
+    projects = await projectsRes.json();
+    leaders = await leadersRes.json();
+
+    renderLeaderSections();
+  } catch (err) {
+    console.error('Error loading data:', err);
+    document.getElementById('leadersGrid').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚠️</div>
+        Error al cargar datos
+      </div>
+    `;
+  }
+}
+
+function renderLeaderSections() {
+  const grid = document.getElementById('leadersGrid');
+
+  // Group projects by leader
+  const projectsByLeader = {};
+
+  leaders.forEach(leader => {
+    projectsByLeader[leader.name] = {
+      leader: leader,
+      projects: projects.filter(p => p.lider === leader.name)
+    };
+  });
+
+  // Also add projects without leader
+  const noLeaderProjects = projects.filter(p => !p.lider || p.lider === '');
+  if (noLeaderProjects.length > 0) {
+    projectsByLeader['Sin asignar'] = {
+      leader: { id: 'unassigned', name: 'Sin asignar', photo: null },
+      projects: noLeaderProjects
+    };
+  }
+
+  // Filter out leaders with no projects
+  const leadersWithProjects = Object.entries(projectsByLeader)
+    .filter(([_, data]) => data.projects.length > 0)
+    .sort((a, b) => b[1].projects.length - a[1].projects.length);
+
+  if (leadersWithProjects.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.3; margin-bottom: 1rem;">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="12" y1="18" x2="12" y2="12"></line>
+          <line x1="9" y1="15" x2="15" y2="15"></line>
+        </svg>
+        <div>No hay proyectos asignados todavía</div>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = leadersWithProjects.map(([leaderName, data]) => {
+    const { leader, projects: leaderProjects } = data;
+
+    // Calculate stats
+    const totalProjects = leaderProjects.length;
+    const completedProjects = leaderProjects.filter(p => p.pct >= 100).length;
+    const pendingProjects = totalProjects - completedProjects;
+    const averageProgress = totalProjects > 0
+      ? Math.round(leaderProjects.reduce((sum, p) => sum + p.pct, 0) / totalProjects)
+      : 0;
+
+    // Leader photo
+    const avatarHTML = leader.photo
+      ? `<img src="${leader.photo}" alt="${esc(leaderName)}" />`
+      : '';
+    const avatarClass = leader.photo ? '' : 'no-photo';
+
+    // Projects list
+    const projectsHTML = leaderProjects
+      .sort((a, b) => b.pct - a.pct) // Sort by progress descending
+      .map(project => {
+        const c = colorFor(project.pct);
+        const meta = [];
+        if (project.dep) meta.push(`${esc(project.dep)}`);
+        if (project.fechaInicio || project.fechaFin) {
+          meta.push(`${project.fechaInicio || '?'} - ${project.fechaFin || '?'}`);
+        }
+        if (project.hours) meta.push(`${project.hours}h`);
+
+        return `
+          <div class="project-item" onclick="window.location.href='index.html'">
+            <div class="project-status-indicator" style="background: ${c.color};"></div>
+            <div class="project-info">
+              <div class="project-name">${esc(project.name)}</div>
+              ${meta.length > 0 ? `<div class="project-meta">${meta.join(' • ')}</div>` : ''}
+            </div>
+            <div class="project-progress">
+              <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: ${project.pct}%; background: ${c.color};"></div>
+              </div>
+              <div class="progress-percent" style="color: ${c.color};">${Math.round(project.pct)}%</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+    return `
+      <div class="leader-section">
+        <div class="leader-header">
+          <div class="leader-avatar-large ${avatarClass}">
+            ${avatarHTML}
+          </div>
+          <div class="leader-info">
+            <div class="leader-name">${esc(leaderName)}</div>
+            <div class="leader-stats">
+              <div class="stat-box">
+                <div class="stat-label">Total Proyectos</div>
+                <div class="stat-value">${totalProjects}</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Completados</div>
+                <div class="stat-value completed">${completedProjects}</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Pendientes</div>
+                <div class="stat-value pending">${pendingProjects}</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Promedio</div>
+                <div class="stat-value average">${averageProgress}%</div>
+              </div>
+            </div>
+          </div>
+          ${createProgressRing(averageProgress)}
+        </div>
+        <div class="projects-list">
+          ${projectsHTML}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+loadData();
+setInterval(loadData, 30000);
+</script>
+</body>
+</html>
