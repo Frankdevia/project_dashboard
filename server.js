@@ -2,10 +2,15 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const READ_ONLY_TOKEN = process.env.READ_ONLY_TOKEN || '';
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+
+// ── In-memory sessions: token → { user } ──
+const sessions = new Map();
 
 // ── Parse cookies helper ──
 function parseCookies(header = '') {
@@ -19,15 +24,21 @@ function parseCookies(header = '') {
   }, {});
 }
 
-// ── Read-only middleware ──
-// If a request carries the read-only token (via cookie or query param)
-// and is attempting a write operation, block it.
-app.use((req, res, next) => {
-  if (!READ_ONLY_TOKEN) return next();
+// ── Auth helper ──
+function getSession(req) {
   const cookies = parseCookies(req.headers.cookie);
-  const token = cookies.ro_token || req.query.token;
-  if (token === READ_ONLY_TOKEN && req.method !== 'GET') {
-    return res.status(403).json({ error: 'Modo solo lectura: no se permiten modificaciones.' });
+  const token = cookies.admin_session;
+  return token ? sessions.get(token) : null;
+}
+
+// ── Write-protection middleware ──
+// All non-GET requests require a valid admin session.
+// /api/login is exempt (it's how you get a session).
+app.use((req, res, next) => {
+  if (req.method === 'GET') return next();
+  if (req.path === '/api/login') return next();
+  if (!getSession(req)) {
+    return res.status(401).json({ error: 'No autorizado. Inicia sesión para realizar cambios.' });
   }
   next();
 });
@@ -122,11 +133,38 @@ function writeLeaders(data) {
   fs.writeFileSync(LEADERS_FILE, JSON.stringify(data, null, 2));
 }
 
-// ── Token verification ──
-app.get('/api/check-token', (req, res) => {
-  const { token } = req.query;
-  if (!READ_ONLY_TOKEN) return res.json({ readOnly: false });
-  res.json({ readOnly: token === READ_ONLY_TOKEN });
+// ── Auth endpoints ──
+
+// POST /api/login
+app.post('/api/login', (req, res) => {
+  const { user, pass } = req.body;
+  if (!ADMIN_PASSWORD) return res.status(503).json({ error: 'Login no configurado (define ADMIN_PASSWORD).' });
+  if (user === ADMIN_USER && pass === ADMIN_PASSWORD) {
+    const token = crypto.randomBytes(32).toString('hex');
+    sessions.set(token, { user });
+    res.setHeader('Set-Cookie', `admin_session=${token}; Path=/; SameSite=Strict; HttpOnly`);
+    res.json({ ok: true, name: user });
+  } else {
+    res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+  }
+});
+
+// POST /api/logout
+app.post('/api/logout', (req, res) => {
+  const cookies = parseCookies(req.headers.cookie);
+  if (cookies.admin_session) sessions.delete(cookies.admin_session);
+  res.setHeader('Set-Cookie', 'admin_session=; Path=/; Max-Age=0; SameSite=Strict; HttpOnly');
+  res.json({ ok: true });
+});
+
+// GET /api/me
+app.get('/api/me', (req, res) => {
+  const session = getSession(req);
+  if (session) {
+    res.json({ admin: true, user: session.user });
+  } else {
+    res.json({ admin: false });
+  }
 });
 
 // GET all projects
