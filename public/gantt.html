@@ -477,6 +477,7 @@
   .nav-btn svg { opacity: 0.7; transition: opacity 0.2s; }
   .nav-btn:hover { background: var(--bg-card-hover); border-color: var(--border-focus); }
   .nav-btn:hover svg { opacity: 1; }
+  body.readonly .write-action { display: none !important; }
   .nav-user { display: flex; align-items: center; gap: 0.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.4rem 0.75rem 0.4rem 1rem; }
   .nav-user-name { font-size: 0.85rem; font-weight: 600; color: var(--green); }
   .nav-user-sep { color: var(--border-focus); }
@@ -669,7 +670,7 @@
 
     <div class="detail-actions">
       <button class="btn-close" id="detailClose">Cerrar</button>
-      <button class="btn-edit" id="detailEdit">✎ Editar en Dashboard</button>
+      <button class="btn-edit write-action" id="detailEdit">✎ Editar</button>
     </div>
   </div>
 </div>
@@ -989,7 +990,7 @@ function openDetailModal(p) {
 
   // Store project ID for edit button
   document.getElementById('detailEdit').onclick = () => {
-    window.location.href = `index.html?edit=${p.id}`;
+    window.location.href = 'projects.html';
   };
 }
 
@@ -1051,8 +1052,25 @@ async function loadProjects() {
   }
 }
 
+// ── Scroll to today ──
+function scrollToToday() {
+  const ganttScroll = document.querySelector('.gantt-scroll');
+  if (!ganttScroll) return;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const minDate = new Date(2026, 0, 1);
+  const maxDate = new Date(2026, 11, 31);
+  if (today < minDate || today > maxDate) return;
+  const totalDays = getDaysBetween(minDate, maxDate);
+  const daysToToday = getDaysBetween(minDate, today);
+  const timeUnits = generateTimeUnits(minDate, maxDate, currentZoom);
+  const cellWidth = 80;
+  const timelineWidthPx = timeUnits.length * cellWidth;
+  ganttScroll.scrollLeft = (daysToToday / totalDays) * timelineWidthPx;
+}
+
 loadLeaders();
-loadProjects();
+loadProjects().then(() => scrollToToday());
 setInterval(loadProjects, 15000);
 setInterval(loadLeaders, 30000);
 
@@ -1061,11 +1079,14 @@ async function checkSession() {
   try {
     const { admin, user } = await fetch('/api/me').then(r => r.json());
     if (admin) {
+      document.body.classList.remove('readonly');
       document.getElementById('btnLogin').style.display = 'none';
       document.getElementById('userInfo').style.display = 'flex';
       document.getElementById('userName').textContent = user;
+    } else {
+      document.body.classList.add('readonly');
     }
-  } catch {}
+  } catch { document.body.classList.add('readonly'); }
 }
 function openLoginModal() {
   document.getElementById('loginModal').style.display = 'flex';
@@ -1084,6 +1105,7 @@ async function doLogin() {
     const data = await r.json();
     if (!r.ok) { document.getElementById('loginError').textContent = data.error || 'Error'; return; }
     closeLoginModal();
+    document.body.classList.remove('readonly');
     document.getElementById('btnLogin').style.display = 'none';
     document.getElementById('userInfo').style.display = 'flex';
     document.getElementById('userName').textContent = data.name;
@@ -1091,6 +1113,7 @@ async function doLogin() {
 }
 async function doLogout() {
   await fetch('/api/logout', { method: 'POST' });
+  document.body.classList.add('readonly');
   document.getElementById('btnLogin').style.display = 'flex';
   document.getElementById('userInfo').style.display = 'none';
 }

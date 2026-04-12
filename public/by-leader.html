@@ -344,6 +344,31 @@
   .nav-btn svg { opacity: 0.7; transition: opacity 0.2s; }
   .nav-btn:hover { background: var(--bg-card-hover); border-color: var(--border-focus); }
   .nav-btn:hover svg { opacity: 1; }
+  body.readonly .write-action { display: none !important; }
+  /* ── Detail Modal ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 5000; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(4px); }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg-card); border: 1px solid var(--border-focus); border-radius: var(--radius); padding: 1.75rem; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.22s ease-out; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  .detail-header { text-align: center; padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+  .detail-header h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; margin-bottom: 0.5rem; }
+  .lider-chip { display: inline-block; background: rgba(88,166,255,0.15); color: var(--accent); padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; margin: 0.25rem 0; }
+  .status-chip { display: inline-block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.3rem 0.8rem; border-radius: 6px; margin: 0.25rem 0; }
+  .detail-section { margin-bottom: 1.5rem; }
+  .detail-section h4 { font-size: 0.82rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.5rem; }
+  .detail-section p { color: var(--text); font-size: 0.95rem; line-height: 1.6; }
+  .detail-section .empty-value { color: var(--text-dim); font-style: italic; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  .detail-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem; }
+  .detail-item label { display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.3rem; }
+  .detail-item .value { font-size: 1rem; color: var(--text); font-weight: 500; }
+  .detail-item .value.highlight { font-weight: 700; font-size: 1.2rem; font-family: var(--font-display); }
+  .detail-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border); margin-top: 0.5rem; }
+  .detail-actions button { border: none; border-radius: var(--radius-sm); padding: 0.6rem 1.4rem; font-family: var(--font-body); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  .btn-close-detail { background: transparent; color: var(--text-muted); border: 1px solid var(--border) !important; }
+  .btn-close-detail:hover { color: var(--text); border-color: var(--border-focus) !important; }
+  .btn-edit-detail { background: var(--accent); color: #000; }
+  .btn-edit-detail:hover { opacity: 0.85; }
   .nav-user { display: flex; align-items: center; gap: 0.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.4rem 0.75rem 0.4rem 1rem; }
   .nav-user-name { font-size: 0.85rem; font-weight: 600; color: var(--green); }
   .nav-user-sep { color: var(--border-focus); }
@@ -455,6 +480,49 @@
       <div class="login-group"><label>Contraseña</label><input class="login-input" type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password"></div>
       <div class="login-error" id="loginError"></div>
       <div class="login-footer"><button class="login-cancel" onclick="closeLoginModal()">Cancelar</button><button class="login-submit" onclick="doLogin()">Entrar</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Project Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="detail-header">
+      <h3 id="dName"></h3>
+      <div id="dLider"></div>
+      <div id="dStatus"></div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-item">
+        <label>Progreso</label>
+        <div class="value highlight" id="dPct"></div>
+      </div>
+      <div class="detail-item">
+        <label>Horas ahorradas</label>
+        <div class="value highlight" id="dHours" style="color:var(--green)"></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h4>Descripción</h4>
+      <p id="dDesc"></p>
+    </div>
+    <div class="detail-section">
+      <h4>Dependencia</h4>
+      <p id="dDep"></p>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-item">
+        <label>Fecha de inicio</label>
+        <div class="value" id="dFechaInicio"></div>
+      </div>
+      <div class="detail-item">
+        <label>Fecha de finalización</label>
+        <div class="value" id="dFechaFin"></div>
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button class="btn-close-detail" onclick="closeDetailModal()">Cerrar</button>
+      <button class="btn-edit-detail write-action" onclick="window.location.href='projects.html'">✎ Editar en Proyectos</button>
     </div>
   </div>
 </div>
@@ -594,7 +662,7 @@ function renderLeaderSections() {
         if (project.hours) meta.push(`${project.hours}h`);
 
         return `
-          <div class="project-item" onclick="window.location.href='index.html'">
+          <div class="project-item" style="cursor:pointer" onclick="openDetailModal('${project.id}')">
             <div class="project-status-indicator" style="background: ${c.color};"></div>
             <div class="project-info">
               <div class="project-name">${esc(project.name)}</div>
@@ -650,16 +718,63 @@ function renderLeaderSections() {
 loadData();
 setInterval(loadData, 30000);
 
+// ── Detail Modal ──
+const detailModal = document.getElementById('detailModal');
+
+function colorFor(p) {
+  if (p >= 100) return { color: '#3fb950', label: 'Completado', bg: 'rgba(63,185,80,0.12)' };
+  if (p >= 75)  return { color: '#58a6ff', label: 'Avanzado', bg: 'rgba(88,166,255,0.12)' };
+  if (p >= 40)  return { color: '#d29922', label: 'En progreso', bg: 'rgba(210,153,34,0.12)' };
+  return              { color: '#f85149', label: 'Inicio', bg: 'rgba(248,81,73,0.12)' };
+}
+
+function openDetailModal(id) {
+  const p = projects.find(pr => pr.id === id);
+  if (!p) return;
+  const c = colorFor(p.pct);
+  document.getElementById('dName').textContent = p.name;
+  document.getElementById('dLider').innerHTML = p.lider
+    ? `<span class="lider-chip">${esc(p.lider)}</span>` : '';
+  document.getElementById('dStatus').innerHTML = `<span class="status-chip" style="background:${c.bg};color:${c.color}">${c.label}</span>`;
+  const pctEl = document.getElementById('dPct');
+  pctEl.textContent = Math.round(p.pct) + '%';
+  pctEl.style.color = c.color;
+  document.getElementById('dHours').textContent = (p.hours || 0).toLocaleString() + 'h';
+  const desc = document.getElementById('dDesc');
+  desc.textContent = p.descripcion || 'Sin descripción';
+  desc.className = p.descripcion ? '' : 'empty-value';
+  const dep = document.getElementById('dDep');
+  dep.textContent = p.dep || 'Sin dependencia asignada';
+  dep.className = p.dep ? '' : 'empty-value';
+  document.getElementById('dFechaInicio').textContent = p.fechaInicio || '—';
+  document.getElementById('dFechaFin').textContent = p.fechaFin || '—';
+  detailModal.classList.add('open');
+}
+
+function closeDetailModal() {
+  detailModal.classList.remove('open');
+}
+
+detailModal.addEventListener('click', e => {
+  if (e.target === detailModal) closeDetailModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && detailModal.classList.contains('open')) closeDetailModal();
+});
+
 // ── Auth ──
 async function checkSession() {
   try {
     const { admin, user } = await fetch('/api/me').then(r => r.json());
     if (admin) {
+      document.body.classList.remove('readonly');
       document.getElementById('btnLogin').style.display = 'none';
       document.getElementById('userInfo').style.display = 'flex';
       document.getElementById('userName').textContent = user;
+    } else {
+      document.body.classList.add('readonly');
     }
-  } catch {}
+  } catch { document.body.classList.add('readonly'); }
 }
 function openLoginModal() {
   document.getElementById('loginModal').style.display = 'flex';
@@ -678,6 +793,7 @@ async function doLogin() {
     const data = await r.json();
     if (!r.ok) { document.getElementById('loginError').textContent = data.error || 'Error'; return; }
     closeLoginModal();
+    document.body.classList.remove('readonly');
     document.getElementById('btnLogin').style.display = 'none';
     document.getElementById('userInfo').style.display = 'flex';
     document.getElementById('userName').textContent = data.name;
@@ -685,6 +801,7 @@ async function doLogin() {
 }
 async function doLogout() {
   await fetch('/api/logout', { method: 'POST' });
+  document.body.classList.add('readonly');
   document.getElementById('btnLogin').style.display = 'flex';
   document.getElementById('userInfo').style.display = 'none';
 }

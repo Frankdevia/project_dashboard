@@ -579,6 +579,37 @@
   </div>
 </div>
 
+<!-- Task Detail Modal -->
+<div class="modal-backdrop" id="taskDetailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="tdName">Detalle de tarea</h3>
+      <button class="modal-close" onclick="closeTaskDetail()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem" id="tdBadges"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.25rem">
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem">
+          <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin-bottom:0.3rem">Encargado</div>
+          <div id="tdEnc" style="font-size:0.95rem;font-weight:500"></div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem">
+          <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin-bottom:0.3rem">Dificultad</div>
+          <div id="tdEP"></div>
+        </div>
+      </div>
+      <div style="margin-bottom:1.25rem">
+        <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin-bottom:0.4rem">Descripción</div>
+        <p id="tdDesc" style="font-size:0.9rem;line-height:1.6;color:var(--text)"></p>
+      </div>
+      <div class="form-footer">
+        <button class="btn-cancel" onclick="closeTaskDetail()">Cerrar</button>
+        <button class="btn-save write-action" id="tdEditBtn">✎ Editar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── State ──
 let tareas = [];
@@ -654,7 +685,7 @@ function renderTable() {
   }
 
   tbody.innerHTML = filtered.map(t => `
-    <tr>
+    <tr style="cursor:pointer" onclick="openTaskDetail('${t.id}')">
       <td>${t.categoria ? `<span class="badge badge-cat">${esc(t.categoria)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
       <td><strong>${esc(t.nombre)}</strong></td>
       <td>${t.encargado ? `<span class="badge badge-enc">${esc(t.encargado)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
@@ -662,10 +693,10 @@ function renderTable() {
       <td class="td-desc" title="${esc(t.descripcion || '')}">${t.descripcion ? esc(t.descripcion) : '<span style="color:var(--text-dim)">—</span>'}</td>
       <td>
         <div class="row-actions">
-          <button class="btn-icon write-action" onclick="openEditModal('${t.id}')" title="Editar">
+          <button class="btn-icon write-action" onclick="event.stopPropagation();openEditModal('${t.id}')" title="Editar">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           </button>
-          <button class="btn-icon del write-action" onclick="askDelete('${t.id}')" title="Eliminar">
+          <button class="btn-icon del write-action" onclick="event.stopPropagation();askDelete('${t.id}')" title="Eliminar">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4h6v2"></path></svg>
           </button>
         </div>
@@ -673,6 +704,43 @@ function renderTable() {
     </tr>
   `).join('');
 }
+
+// ── Task Detail Modal ──
+let currentTaskDetailId = null;
+const taskDetailModal = document.getElementById('taskDetailModal');
+
+function openTaskDetail(id) {
+  const t = tareas.find(x => x.id === id);
+  if (!t) return;
+  currentTaskDetailId = id;
+  document.getElementById('tdName').textContent = t.nombre;
+  const badges = [];
+  if (t.categoria) badges.push(`<span class="badge badge-cat">${esc(t.categoria)}</span>`);
+  document.getElementById('tdBadges').innerHTML = badges.join('');
+  document.getElementById('tdEnc').textContent = t.encargado || '—';
+  document.getElementById('tdEP').innerHTML = renderEPStars(t.expertisePoints);
+  const descEl = document.getElementById('tdDesc');
+  descEl.textContent = t.descripcion || 'Sin descripción';
+  descEl.style.color = t.descripcion ? 'var(--text)' : 'var(--text-dim)';
+  descEl.style.fontStyle = t.descripcion ? 'normal' : 'italic';
+  document.getElementById('tdEditBtn').onclick = () => {
+    closeTaskDetail();
+    openEditModal(currentTaskDetailId);
+  };
+  taskDetailModal.classList.add('open');
+}
+
+function closeTaskDetail() {
+  taskDetailModal.classList.remove('open');
+  currentTaskDetailId = null;
+}
+
+taskDetailModal.addEventListener('click', e => {
+  if (e.target === taskDetailModal) closeTaskDetail();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && taskDetailModal.classList.contains('open')) closeTaskDetail();
+});
 
 // ── Render sidebar ──
 function renderSidebar() {

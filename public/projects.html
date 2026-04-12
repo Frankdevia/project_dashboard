@@ -162,6 +162,28 @@
   .modal .btn-delete { background: var(--red); color: #fff; }
   .modal .btn-delete:hover { opacity: 0.85; }
 
+  /* ── Detail Modal ── */
+  .projects-table tbody tr { cursor: pointer; }
+  .detail-header { text-align: center; padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+  .detail-header h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; margin-bottom: 0.5rem; }
+  .lider-chip { display: inline-block; background: rgba(88,166,255,0.15); color: var(--accent); padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; margin: 0.25rem 0; }
+  .status-chip { display: inline-block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.3rem 0.8rem; border-radius: 6px; margin: 0.25rem 0; }
+  .detail-section { margin-bottom: 1.5rem; }
+  .detail-section h4 { font-size: 0.82rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.5rem; }
+  .detail-section p { color: var(--text); font-size: 0.95rem; line-height: 1.6; }
+  .detail-section .empty-value { color: var(--text-dim); font-style: italic; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  .detail-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem; }
+  .detail-item label { display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.3rem; }
+  .detail-item .value { font-size: 1rem; color: var(--text); font-weight: 500; }
+  .detail-item .value.highlight { font-weight: 700; font-size: 1.2rem; font-family: var(--font-display); }
+  .detail-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border); margin-top: 0.5rem; }
+  .detail-actions button { border: none; border-radius: var(--radius-sm); padding: 0.6rem 1.4rem; font-family: var(--font-body); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  .btn-close-detail { background: transparent; color: var(--text-muted); border: 1px solid var(--border) !important; }
+  .btn-close-detail:hover { color: var(--text); border-color: var(--border-focus) !important; }
+  .btn-edit-detail { background: var(--accent); color: #000; }
+  .btn-edit-detail:hover { opacity: 0.85; }
+
   .guardian-today-banner:hover { background: var(--bg-card-hover); border-color: var(--border-focus); transform: translateY(-1px); }
 
   @media (max-width: 768px) {
@@ -413,6 +435,49 @@
   </div>
 </div>
 
+<!-- Project Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="detail-header">
+      <h3 id="dName"></h3>
+      <div id="dLider"></div>
+      <div id="dStatus"></div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-item">
+        <label>Progreso</label>
+        <div class="value highlight" id="dPct"></div>
+      </div>
+      <div class="detail-item">
+        <label>Horas ahorradas</label>
+        <div class="value highlight" id="dHours" style="color:var(--green)"></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h4>Descripción</h4>
+      <p id="dDesc"></p>
+    </div>
+    <div class="detail-section">
+      <h4>Dependencia</h4>
+      <p id="dDep"></p>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-item">
+        <label>Fecha de inicio</label>
+        <div class="value" id="dFechaInicio"></div>
+      </div>
+      <div class="detail-item">
+        <label>Fecha de finalización</label>
+        <div class="value" id="dFechaFin"></div>
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button class="btn-close-detail" onclick="closeDetailModal()">Cerrar</button>
+      <button class="btn-edit-detail write-action" id="dEditBtn">✎ Editar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── API layer ──
 const API = '/api/projects';
@@ -498,6 +563,8 @@ function render() {
   filteredProjects.forEach(p => {
     const c = colorFor(p.pct);
     const row = document.createElement('tr');
+    row.style.cursor = 'pointer';
+    row.onclick = () => openDetailModal(p.id);
 
     const fechas = [];
     if (p.fechaInicio) fechas.push(`Inicio: ${p.fechaInicio}`);
@@ -523,8 +590,8 @@ function render() {
       <td><strong style="color: var(--green);">${(p.hours || 0).toLocaleString()}h</strong></td>
       <td style="font-size: 0.8rem; color: var(--text-muted);">${fechasText}</td>
       <td class="actions-cell">
-        <button class="btn-edit write-action" onclick="openEditModal('${p.id}')" title="Editar">✎</button>
-        <button class="btn-delete write-action" onclick="openDeleteModal('${p.id}')" title="Eliminar">🗑</button>
+        <button class="btn-edit write-action" onclick="event.stopPropagation();openEditModal('${p.id}')" title="Editar">✎</button>
+        <button class="btn-delete write-action" onclick="event.stopPropagation();openDeleteModal('${p.id}')" title="Eliminar">🗑</button>
       </td>
     `;
 
@@ -1079,6 +1146,55 @@ projectModal.addEventListener('click', (e) => {
 });
 deleteModal.addEventListener('click', (e) => {
   if (e.target === deleteModal) closeDeleteModal();
+});
+
+// ── Detail Modal ──
+let currentDetailId = null;
+const detailModal = document.getElementById('detailModal');
+
+function openDetailModal(id) {
+  const p = projects.find(pr => pr.id === id);
+  if (!p) return;
+  currentDetailId = id;
+  const c = colorFor(p.pct);
+  document.getElementById('dName').textContent = p.name;
+  document.getElementById('dLider').innerHTML = p.lider
+    ? `<span class="lider-chip">${esc(p.lider)}</span>` : '';
+  document.getElementById('dStatus').innerHTML = `<span class="status-chip" style="background:${c.bg};color:${c.color}">${c.label}</span>`;
+  const pctEl = document.getElementById('dPct');
+  pctEl.textContent = Math.round(p.pct) + '%';
+  pctEl.style.color = c.color;
+  document.getElementById('dHours').textContent = (p.hours || 0).toLocaleString() + 'h';
+  const desc = document.getElementById('dDesc');
+  desc.textContent = p.descripcion || 'Sin descripción';
+  desc.className = p.descripcion ? '' : 'empty-value';
+  const dep = document.getElementById('dDep');
+  dep.textContent = p.dep || 'Sin dependencia asignada';
+  dep.className = p.dep ? '' : 'empty-value';
+  const fi = document.getElementById('dFechaInicio');
+  fi.textContent = p.fechaInicio || '—';
+  fi.className = p.fechaInicio ? 'value' : 'value empty-value';
+  const ff = document.getElementById('dFechaFin');
+  ff.textContent = p.fechaFin || '—';
+  ff.className = p.fechaFin ? 'value' : 'value empty-value';
+  detailModal.classList.add('open');
+}
+
+function closeDetailModal() {
+  detailModal.classList.remove('open');
+  currentDetailId = null;
+}
+
+document.getElementById('dEditBtn').addEventListener('click', () => {
+  const id = currentDetailId;
+  closeDetailModal();
+  openEditModal(id);
+});
+detailModal.addEventListener('click', e => {
+  if (e.target === detailModal) closeDetailModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && detailModal.classList.contains('open')) closeDetailModal();
 });
 
 // ── Initialize ──
