@@ -617,6 +617,7 @@ async function loadLeaders() {
   try {
     const res = await fetch('/api/leaders');
     leaders = await res.json();
+    if (projects.length > 0) render(); // re-render cards with fresh avatars
   } catch (err) {
     console.error('Error loading leaders:', err);
   }
