@@ -282,6 +282,7 @@
   .login-cancel:hover { border-color: var(--border-focus); color: var(--text); }
   .login-submit { background: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); color: #000; font-family: var(--font-body); font-size: 0.9rem; font-weight: 700; padding: 0.6rem 1.5rem; cursor: pointer; transition: opacity 0.2s; }
   .login-submit:hover { opacity: 0.85; }
+  body.readonly .write-action { display: none !important; }
 </style>
 </head>
 <body>
@@ -380,6 +381,49 @@
         <button class="login-cancel" onclick="closeLoginModal()">Cancelar</button>
         <button class="login-submit" onclick="doLogin()">Entrar</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Project Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal detail-modal">
+    <div class="detail-header">
+      <h3 id="dName"></h3>
+      <div id="dLider"></div>
+      <div id="dStatus"></div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-item">
+        <label>Progreso</label>
+        <div class="value highlight" id="dPct"></div>
+      </div>
+      <div class="detail-item">
+        <label>Horas ahorradas</label>
+        <div class="value highlight" id="dHours" style="color:var(--green)"></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h4>Descripción</h4>
+      <p id="dDesc"></p>
+    </div>
+    <div class="detail-section">
+      <h4>Dependencia</h4>
+      <p id="dDep"></p>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-item">
+        <label>Fecha de inicio</label>
+        <div class="value" id="dFechaInicio"></div>
+      </div>
+      <div class="detail-item">
+        <label>Fecha de finalización</label>
+        <div class="value" id="dFechaFin"></div>
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button class="btn-close" onclick="closeDetailModal()">Cerrar</button>
+      <button class="btn-edit write-action" onclick="window.location.href='projects.html'">✎ Editar en Proyectos</button>
     </div>
   </div>
 </div>
@@ -524,7 +568,7 @@ function render() {
 
     const card = document.createElement('div');
     card.className = 'card';
-    card.onclick = () => window.location.href = 'projects.html';
+    card.onclick = () => openDetailModal(p.id);
     card.style.cursor = 'pointer';
 
     // Leader avatar
@@ -870,12 +914,59 @@ loadGuardianToday();
 setInterval(loadProjects, 15000);
 setInterval(loadLeaders, 30000);
 
+// ── Detail Modal ──
+function colorForDetail(p) {
+  if (p >= 100) return { color: '#3fb950', label: 'Completado', bg: 'rgba(63,185,80,0.12)' };
+  if (p >= 75)  return { color: '#58a6ff', label: 'Avanzado',   bg: 'rgba(88,166,255,0.12)' };
+  if (p >= 40)  return { color: '#d29922', label: 'En progreso',bg: 'rgba(210,153,34,0.12)' };
+  return              { color: '#f85149', label: 'Inicio',      bg: 'rgba(248,81,73,0.12)' };
+}
+const detailModal = document.getElementById('detailModal');
+
+function openDetailModal(id) {
+  const p = projects.find(pr => pr.id === id);
+  if (!p) return;
+  const c = colorForDetail(p.pct);
+  document.getElementById('dName').textContent = p.name;
+  document.getElementById('dLider').innerHTML = p.lider
+    ? `<span class="project-lider">${p.lider}</span>` : '';
+  document.getElementById('dStatus').innerHTML =
+    `<span class="project-status" style="background:${c.bg};color:${c.color}">${c.label}</span>`;
+  const pctEl = document.getElementById('dPct');
+  pctEl.textContent = Math.round(p.pct) + '%';
+  pctEl.style.color = c.color;
+  document.getElementById('dHours').textContent = (p.hours || 0).toLocaleString() + 'h';
+  const desc = document.getElementById('dDesc');
+  desc.textContent = p.descripcion || 'Sin descripción';
+  desc.className = p.descripcion ? '' : 'empty-value';
+  const dep = document.getElementById('dDep');
+  dep.textContent = p.dep || 'Sin dependencia asignada';
+  dep.className = p.dep ? '' : 'empty-value';
+  document.getElementById('dFechaInicio').textContent = p.fechaInicio || '—';
+  document.getElementById('dFechaFin').textContent = p.fechaFin || '—';
+  detailModal.classList.add('open');
+}
+
+function closeDetailModal() { detailModal.classList.remove('open'); }
+
+detailModal.addEventListener('click', e => { if (e.target === detailModal) closeDetailModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && detailModal.classList.contains('open')) closeDetailModal();
+});
+
 // ── Auth ──
 async function checkSession() {
   try {
     const { admin, user } = await fetch('/api/me').then(r => r.json());
-    if (admin) { document.getElementById('btnLogin').style.display = 'none'; document.getElementById('userInfo').style.display = 'flex'; document.getElementById('userName').textContent = user; }
-  } catch {}
+    if (admin) {
+      document.body.classList.remove('readonly');
+      document.getElementById('btnLogin').style.display = 'none';
+      document.getElementById('userInfo').style.display = 'flex';
+      document.getElementById('userName').textContent = user;
+    } else {
+      document.body.classList.add('readonly');
+    }
+  } catch { document.body.classList.add('readonly'); }
 }
 function openLoginModal() {
   document.getElementById('loginError').style.display = 'none';
@@ -892,12 +983,13 @@ async function doLogin() {
   errEl.style.display = 'none';
   try {
     const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user, pass }) });
-    if (r.ok) { const { name } = await r.json(); closeLoginModal(); document.getElementById('btnLogin').style.display = 'none'; document.getElementById('userInfo').style.display = 'flex'; document.getElementById('userName').textContent = name; }
+    if (r.ok) { const { name } = await r.json(); closeLoginModal(); document.body.classList.remove('readonly'); document.getElementById('btnLogin').style.display = 'none'; document.getElementById('userInfo').style.display = 'flex'; document.getElementById('userName').textContent = name; }
     else { errEl.textContent = 'Usuario o contraseña incorrectos.'; errEl.style.display = 'block'; }
   } catch { errEl.textContent = 'Error de conexión.'; errEl.style.display = 'block'; }
 }
 async function doLogout() {
   await fetch('/api/logout', { method: 'POST' });
+  document.body.classList.add('readonly');
   document.getElementById('btnLogin').style.display = 'flex';
   document.getElementById('userInfo').style.display = 'none';
 }
