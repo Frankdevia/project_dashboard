@@ -832,11 +832,13 @@ loadAll();
 
 // ── Read-only mode ──
 (async () => {
-  const token = new URLSearchParams(window.location.search).get('token');
+  const token = new URLSearchParams(window.location.search).get('token')
+             || sessionStorage.getItem('ro_token');
   if (!token) return;
   try {
     const { readOnly } = await fetch(`/api/check-token?token=${encodeURIComponent(token)}`).then(r => r.json());
     if (readOnly) {
+      sessionStorage.setItem('ro_token', token);
       document.body.classList.add('readonly');
       document.cookie = `ro_token=${encodeURIComponent(token)}; path=/; SameSite=Strict`;
     }
