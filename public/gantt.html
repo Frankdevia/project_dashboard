@@ -201,10 +201,30 @@
   .gantt-scroll {
     overflow-x: auto;
     overflow-y: visible;
+    padding-bottom: 1rem;
+  }
+
+  .gantt-scroll::-webkit-scrollbar {
+    height: 12px;
+  }
+
+  .gantt-scroll::-webkit-scrollbar-track {
+    background: var(--bg-input);
+    border-radius: 6px;
+  }
+
+  .gantt-scroll::-webkit-scrollbar-thumb {
+    background: rgba(88,166,255,0.3);
+    border-radius: 6px;
+    transition: background 0.2s;
+  }
+
+  .gantt-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(88,166,255,0.5);
   }
 
   .gantt {
-    min-width: 100%;
+    min-width: max-content;
     display: table;
   }
 
@@ -231,9 +251,9 @@
   }
 
   .gantt-timeline-header {
-    flex: 1;
     display: flex;
     background: var(--bg-input);
+    min-width: max-content;
   }
 
   .gantt-row {
@@ -290,9 +310,10 @@
   }
 
   .gantt-row-timeline {
-    flex: 1;
     position: relative;
     min-height: 60px;
+    min-width: max-content;
+    flex: 1;
   }
 
   .gantt-timeline-grid {
@@ -305,9 +326,11 @@
   }
 
   .gantt-time-cell {
-    flex: 1;
+    min-width: 80px;
+    width: 80px;
     border-right: 1px solid var(--border);
     position: relative;
+    flex-shrink: 0;
   }
 
   .gantt-time-cell:last-child {
@@ -315,13 +338,15 @@
   }
 
   .gantt-header-cell {
-    flex: 1;
+    min-width: 80px;
+    width: 80px;
     padding: 0.5rem;
     text-align: center;
     font-size: 0.75rem;
     color: var(--text-muted);
     border-right: 1px solid var(--border);
     font-weight: 500;
+    flex-shrink: 0;
   }
 
   .gantt-header-cell:last-child {
@@ -638,34 +663,9 @@ function getMonthYear(date) {
 
 // ── Timeline calculation ──
 function calculateTimeline(filteredProjects) {
-  if (filteredProjects.length === 0) return null;
-
-  let minDate = null;
-  let maxDate = null;
-
-  filteredProjects.forEach(p => {
-    const start = parseDate(p.fechaInicio);
-    const end = parseDate(p.fechaFin);
-
-    if (start) {
-      if (!minDate || start < minDate) minDate = start;
-    }
-    if (end) {
-      if (!maxDate || end > maxDate) maxDate = end;
-    }
-  });
-
-  // If no dates, return null
-  if (!minDate && !maxDate) return null;
-
-  // Default to today if no dates
-  const today = new Date();
-  if (!minDate) minDate = addDays(today, -30);
-  if (!maxDate) maxDate = addDays(today, 30);
-
-  // Add padding
-  minDate = addDays(minDate, -7);
-  maxDate = addDays(maxDate, 7);
+  // Fixed range: January 1, 2026 to December 31, 2026
+  const minDate = new Date(2026, 0, 1);  // January 1, 2026
+  const maxDate = new Date(2026, 11, 31); // December 31, 2026
 
   return { minDate, maxDate };
 }
