@@ -261,6 +261,9 @@
     display: none;
   }
 
+  /* ── Read-only mode ── */
+  body.readonly .write-action { display: none !important; }
+
   .empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -341,7 +344,7 @@
 </div>
 
 <div class="container">
-  <div class="add-leader-form">
+  <div class="add-leader-form write-action">
     <h2>Agregar Nuevo Líder</h2>
     <div class="form-row">
       <div class="form-field">
@@ -400,14 +403,14 @@ function renderLeaders() {
       </div>
       <div class="leader-name">${esc(leader.name)}</div>
       <div class="leader-actions">
-        <button class="btn-upload" onclick="uploadPhoto('${leader.id}')">
+        <button class="btn-upload write-action" onclick="uploadPhoto('${leader.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
             <circle cx="12" cy="13" r="4"></circle>
           </svg>
           ${leader.photo ? 'Cambiar Foto' : 'Subir Foto'}
         </button>
-        <button class="btn-delete" onclick="deleteLeader('${leader.id}')">
+        <button class="btn-delete write-action" onclick="deleteLeader('${leader.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 6 5 6 21 6"></polyline>
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -499,6 +502,19 @@ document.getElementById('leaderNameInput').addEventListener('keydown', (e) => {
 });
 
 loadLeaders();
+
+// ── Read-only mode ──
+(async () => {
+  const token = new URLSearchParams(window.location.search).get('token');
+  if (!token) return;
+  try {
+    const { readOnly } = await fetch(`/api/check-token?token=${encodeURIComponent(token)}`).then(r => r.json());
+    if (readOnly) {
+      document.body.classList.add('readonly');
+      document.cookie = `ro_token=${encodeURIComponent(token)}; path=/; SameSite=Strict`;
+    }
+  } catch {}
+})();
 </script>
 </body>
 </html>

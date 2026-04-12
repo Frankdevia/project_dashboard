@@ -5,6 +5,32 @@ const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const READ_ONLY_TOKEN = process.env.READ_ONLY_TOKEN || '';
+
+// ── Parse cookies helper ──
+function parseCookies(header = '') {
+  return header.split(';').reduce((acc, pair) => {
+    const idx = pair.indexOf('=');
+    if (idx === -1) return acc;
+    const key = pair.slice(0, idx).trim();
+    const val = decodeURIComponent(pair.slice(idx + 1).trim());
+    acc[key] = val;
+    return acc;
+  }, {});
+}
+
+// ── Read-only middleware ──
+// If a request carries the read-only token (via cookie or query param)
+// and is attempting a write operation, block it.
+app.use((req, res, next) => {
+  if (!READ_ONLY_TOKEN) return next();
+  const cookies = parseCookies(req.headers.cookie);
+  const token = cookies.ro_token || req.query.token;
+  if (token === READ_ONLY_TOKEN && req.method !== 'GET') {
+    return res.status(403).json({ error: 'Modo solo lectura: no se permiten modificaciones.' });
+  }
+  next();
+});
 const DATA_FILE = path.join(__dirname, 'data', 'projects.json');
 const LEADERS_FILE = path.join(__dirname, 'data', 'leaders.json');
 const TAREAS_FILE = path.join(__dirname, 'data', 'tareas-rutinarias.json');
@@ -95,6 +121,13 @@ function readLeaders() {
 function writeLeaders(data) {
   fs.writeFileSync(LEADERS_FILE, JSON.stringify(data, null, 2));
 }
+
+// ── Token verification ──
+app.get('/api/check-token', (req, res) => {
+  const { token } = req.query;
+  if (!READ_ONLY_TOKEN) return res.json({ readOnly: false });
+  res.json({ readOnly: token === READ_ONLY_TOKEN });
+});
 
 // GET all projects
 app.get('/api/projects', (req, res) => {
