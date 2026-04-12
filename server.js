@@ -205,4 +205,26 @@ app.post('/api/leaders/:id/photo', upload.single('photo'), (req, res) => {
   res.json(leaders[idx]);
 });
 
+// Debug endpoint to verify volume persistence
+app.get('/api/debug/volume', (req, res) => {
+  const dataDir = path.join(__dirname, 'data');
+  const uploadsDir = path.join(dataDir, 'uploads');
+
+  const check = {
+    workingDirectory: __dirname,
+    dataDir: dataDir,
+    dataExists: fs.existsSync(dataDir),
+    uploadsExists: fs.existsSync(uploadsDir),
+    projectsFileExists: fs.existsSync(DATA_FILE),
+    leadersFileExists: fs.existsSync(LEADERS_FILE),
+    projectsCount: readProjects().length,
+    leadersCount: readLeaders().length,
+    uploadedFiles: fs.existsSync(uploadsDir) ? fs.readdirSync(uploadsDir) : [],
+    dataDirStats: fs.existsSync(dataDir) ? fs.statSync(dataDir) : null,
+    timestamp: new Date().toISOString()
+  };
+
+  res.json(check);
+});
+
 app.listen(PORT, () => console.log(`Dashboard running on port ${PORT}`));
