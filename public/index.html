@@ -385,6 +385,25 @@
   </div>
 </div>
 
+<!-- Edit Project Modal -->
+<div class="modal-overlay" id="editProjectModal">
+  <div class="modal">
+    <h3>Editar Proyecto</h3>
+    <div class="field"><label>Nombre del proyecto</label><input type="text" id="epName" placeholder="Nombre del proyecto"></div>
+    <div class="field"><label>Líder</label><select id="epLider"><option value="">Seleccionar líder</option></select></div>
+    <div class="field"><label>Dependencia</label><input type="text" id="epDep" placeholder="Departamento o dependencia"></div>
+    <div class="field"><label>Descripción</label><textarea id="epDesc" placeholder="Descripción del proyecto"></textarea></div>
+    <div class="field"><label>Fecha de inicio</label><input type="date" id="epFechaInicio"></div>
+    <div class="field"><label>Fecha de finalización</label><input type="date" id="epFechaFin"></div>
+    <div class="field"><label>Progreso (%)</label><input type="number" id="epPct" min="0" max="100" step="1" placeholder="0 - 100"></div>
+    <div class="field"><label>Horas ahorradas</label><input type="number" id="epHours" min="0" step="1" placeholder="0"></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeEditProjectModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveEditProject()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Project Detail Modal -->
 <div class="modal-overlay" id="detailModal">
   <div class="modal detail-modal">
@@ -423,7 +442,7 @@
     </div>
     <div class="detail-actions">
       <button class="btn-close" onclick="closeDetailModal()">Cerrar</button>
-      <button class="btn-edit write-action" onclick="window.location.href='projects.html'">✎ Editar en Proyectos</button>
+      <button class="btn-edit write-action" id="dEditBtnIndex">✎ Editar</button>
     </div>
   </div>
 </div>
@@ -914,7 +933,72 @@ loadGuardianToday();
 setInterval(loadProjects, 15000);
 setInterval(loadLeaders, 30000);
 
+// ── Edit Project Modal ──
+let editingProjectId = null;
+
+async function openEditProjectModal(id) {
+  const p = projects.find(pr => pr.id === id);
+  if (!p) return;
+  editingProjectId = id;
+  try {
+    const res = await fetch('/api/leaders');
+    const list = await res.json();
+    const sel = document.getElementById('epLider');
+    sel.innerHTML = '<option value="">Seleccionar líder</option>';
+    list.forEach(l => {
+      const o = document.createElement('option');
+      o.value = l.name; o.textContent = l.name;
+      if (l.name === p.lider) o.selected = true;
+      sel.appendChild(o);
+    });
+  } catch {}
+  document.getElementById('epName').value = p.name || '';
+  document.getElementById('epDep').value = p.dep || '';
+  document.getElementById('epDesc').value = p.descripcion || '';
+  document.getElementById('epFechaInicio').value = p.fechaInicio || '';
+  document.getElementById('epFechaFin').value = p.fechaFin || '';
+  document.getElementById('epPct').value = p.pct != null ? p.pct : '';
+  document.getElementById('epHours').value = p.hours || '';
+  document.getElementById('editProjectModal').classList.add('open');
+  document.getElementById('epName').focus();
+}
+
+function closeEditProjectModal() {
+  document.getElementById('editProjectModal').classList.remove('open');
+  editingProjectId = null;
+}
+
+async function saveEditProject() {
+  const name = document.getElementById('epName').value.trim();
+  if (!name) { document.getElementById('epName').focus(); return; }
+  const data = {
+    name,
+    lider: document.getElementById('epLider').value,
+    dep: document.getElementById('epDep').value,
+    descripcion: document.getElementById('epDesc').value,
+    fechaInicio: document.getElementById('epFechaInicio').value,
+    fechaFin: document.getElementById('epFechaFin').value,
+    pct: Math.max(0, Math.min(100, Number(document.getElementById('epPct').value) || 0)),
+    hours: Math.max(0, Number(document.getElementById('epHours').value) || 0)
+  };
+  try {
+    const r = await fetch(`/api/projects/${editingProjectId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) throw new Error();
+    closeEditProjectModal();
+    await loadProjects();
+  } catch { alert('Error al guardar el proyecto'); }
+}
+
+document.getElementById('editProjectModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('editProjectModal')) closeEditProjectModal();
+});
+
 // ── Detail Modal ──
+let currentDetailProjectId = null;
 function colorForDetail(p) {
   if (p >= 100) return { color: '#3fb950', label: 'Completado', bg: 'rgba(63,185,80,0.12)' };
   if (p >= 75)  return { color: '#58a6ff', label: 'Avanzado',   bg: 'rgba(88,166,255,0.12)' };
@@ -926,6 +1010,7 @@ const detailModal = document.getElementById('detailModal');
 function openDetailModal(id) {
   const p = projects.find(pr => pr.id === id);
   if (!p) return;
+  currentDetailProjectId = id;
   const c = colorForDetail(p.pct);
   document.getElementById('dName').textContent = p.name;
   document.getElementById('dLider').innerHTML = p.lider
@@ -944,10 +1029,18 @@ function openDetailModal(id) {
   dep.className = p.dep ? '' : 'empty-value';
   document.getElementById('dFechaInicio').textContent = p.fechaInicio || '—';
   document.getElementById('dFechaFin').textContent = p.fechaFin || '—';
+  document.getElementById('dEditBtnIndex').onclick = () => {
+    const id = currentDetailProjectId;
+    closeDetailModal();
+    openEditProjectModal(id);
+  };
   detailModal.classList.add('open');
 }
 
-function closeDetailModal() { detailModal.classList.remove('open'); }
+function closeDetailModal() {
+  detailModal.classList.remove('open');
+  currentDetailProjectId = null;
+}
 
 detailModal.addEventListener('click', e => { if (e.target === detailModal) closeDetailModal(); });
 document.addEventListener('keydown', e => {

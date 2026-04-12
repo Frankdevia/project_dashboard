@@ -458,6 +458,21 @@
   .detail-actions .btn-edit:hover { opacity: 0.85; }
   .detail-actions .btn-close { background: transparent; color: var(--text-muted); border: 1px solid var(--border) !important; }
   .detail-actions .btn-close:hover { color: var(--text); border-color: var(--border-focus) !important; }
+  /* ── Edit form ── */
+  .modal .field { margin-bottom: 1rem; }
+  .modal .field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .modal .field input, .modal .field select, .modal .field textarea { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 0.9rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+  .modal .field input:focus, .modal .field select:focus, .modal .field textarea:focus { border-color: var(--accent); }
+  .modal .field input::placeholder, .modal .field textarea::placeholder { color: var(--text-dim); }
+  .modal .field select { cursor: pointer; }
+  .modal .field textarea { resize: vertical; min-height: 80px; }
+  .modal .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.5rem; }
+  .modal .btn-row button { border: none; border-radius: var(--radius-sm); padding: 0.55rem 1.3rem; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+  .modal .btn-row button:active { transform: scale(0.97); }
+  .modal .btn-cancel { background: transparent; color: var(--text-muted); border: 1px solid var(--border) !important; }
+  .modal .btn-cancel:hover { color: var(--text); border-color: var(--border-focus) !important; }
+  .modal .btn-save { background: var(--accent); color: #000; }
+  .modal .btn-save:hover { opacity: 0.85; }
 
   @media (max-width: 600px) {
     .header, .controls, .gantt-container {
@@ -589,6 +604,25 @@
       <div class="login-group"><label>Contraseña</label><input class="login-input" type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password"></div>
       <div class="login-error" id="loginError"></div>
       <div class="login-footer"><button class="login-cancel" onclick="closeLoginModal()">Cancelar</button><button class="login-submit" onclick="doLogin()">Entrar</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Project Modal -->
+<div class="modal-overlay" id="editProjectModal">
+  <div class="modal">
+    <h3>Editar Proyecto</h3>
+    <div class="field"><label>Nombre del proyecto</label><input type="text" id="epName" placeholder="Nombre del proyecto"></div>
+    <div class="field"><label>Líder</label><select id="epLider"><option value="">Seleccionar líder</option></select></div>
+    <div class="field"><label>Dependencia</label><input type="text" id="epDep" placeholder="Departamento o dependencia"></div>
+    <div class="field"><label>Descripción</label><textarea id="epDesc" placeholder="Descripción del proyecto"></textarea></div>
+    <div class="field"><label>Fecha de inicio</label><input type="date" id="epFechaInicio"></div>
+    <div class="field"><label>Fecha de finalización</label><input type="date" id="epFechaFin"></div>
+    <div class="field"><label>Progreso (%)</label><input type="number" id="epPct" min="0" max="100" step="1" placeholder="0 - 100"></div>
+    <div class="field"><label>Horas ahorradas</label><input type="number" id="epHours" min="0" step="1" placeholder="0"></div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeEditProjectModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveEditProject()">Guardar</button>
     </div>
   </div>
 </div>
@@ -988,9 +1022,9 @@ function openDetailModal(p) {
 
   detailOverlay.classList.add('open');
 
-  // Store project ID for edit button
   document.getElementById('detailEdit').onclick = () => {
-    window.location.href = 'projects.html';
+    closeDetailModal();
+    openEditProjectModal(p.id);
   };
 }
 
@@ -1051,6 +1085,70 @@ async function loadProjects() {
     gantt.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div>Error al cargar proyectos</div>`;
   }
 }
+
+// ── Edit Project Modal ──
+let editingProjectId = null;
+
+async function openEditProjectModal(id) {
+  const p = projects.find(pr => pr.id === id);
+  if (!p) return;
+  editingProjectId = id;
+  try {
+    const res = await fetch('/api/leaders');
+    const list = await res.json();
+    const sel = document.getElementById('epLider');
+    sel.innerHTML = '<option value="">Seleccionar líder</option>';
+    list.forEach(l => {
+      const o = document.createElement('option');
+      o.value = l.name; o.textContent = l.name;
+      if (l.name === p.lider) o.selected = true;
+      sel.appendChild(o);
+    });
+  } catch {}
+  document.getElementById('epName').value = p.name || '';
+  document.getElementById('epDep').value = p.dep || '';
+  document.getElementById('epDesc').value = p.descripcion || '';
+  document.getElementById('epFechaInicio').value = p.fechaInicio || '';
+  document.getElementById('epFechaFin').value = p.fechaFin || '';
+  document.getElementById('epPct').value = p.pct != null ? p.pct : '';
+  document.getElementById('epHours').value = p.hours || '';
+  document.getElementById('editProjectModal').classList.add('open');
+  document.getElementById('epName').focus();
+}
+
+function closeEditProjectModal() {
+  document.getElementById('editProjectModal').classList.remove('open');
+  editingProjectId = null;
+}
+
+async function saveEditProject() {
+  const name = document.getElementById('epName').value.trim();
+  if (!name) { document.getElementById('epName').focus(); return; }
+  const data = {
+    name,
+    lider: document.getElementById('epLider').value,
+    dep: document.getElementById('epDep').value,
+    descripcion: document.getElementById('epDesc').value,
+    fechaInicio: document.getElementById('epFechaInicio').value,
+    fechaFin: document.getElementById('epFechaFin').value,
+    pct: Math.max(0, Math.min(100, Number(document.getElementById('epPct').value) || 0)),
+    hours: Math.max(0, Number(document.getElementById('epHours').value) || 0)
+  };
+  try {
+    const r = await fetch(`/api/projects/${editingProjectId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) throw new Error();
+    closeEditProjectModal();
+    await loadProjects();
+  } catch { alert('Error al guardar el proyecto'); }
+}
+
+document.getElementById('editProjectModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('editProjectModal')) closeEditProjectModal();
+});
 
 // ── Scroll to today ──
 function scrollToToday() {
