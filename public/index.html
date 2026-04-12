@@ -85,6 +85,14 @@
   .filters label { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; }
   .filters select { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.9rem; color: var(--text); font-family: var(--font-body); font-size: 0.85rem; outline: none; transition: border-color 0.2s; cursor: pointer; }
   .filters select:focus { border-color: var(--border-focus); }
+  .filters .excel-buttons { margin-left: auto; display: flex; gap: 8px; }
+  .filters .excel-buttons button { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 1rem; color: var(--text); font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.4rem; }
+  .filters .excel-buttons button:hover { background: var(--bg-card-hover); border-color: var(--border-focus); }
+  .filters .excel-buttons button svg { opacity: 0.7; }
+  .filters .excel-buttons button:hover svg { opacity: 1; }
+  .filters .excel-buttons .btn-export { background: var(--green); border-color: var(--green); color: #000; }
+  .filters .excel-buttons .btn-export:hover { opacity: 0.85; }
+  .filters .excel-buttons input[type="file"] { display: none; }
 
   .grid { max-width: 1200px; margin: 0 auto; padding: 0 2rem 3rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
 
@@ -239,7 +247,7 @@
 
 <div class="header">
   <div class="header-left">
-    <h1>Project dashboard <span>/ avance global</span></h1>
+    <h1>Project Dashboard Technology Team Liceo Inglés</h1>
     <p id="subtitle">Cargando...</p>
   </div>
   <div class="nav-links">
@@ -322,6 +330,25 @@
     <option value="Avanzado">Avanzado</option>
     <option value="Completado">Completado</option>
   </select>
+  <div class="excel-buttons">
+    <button id="btnImport" title="Importar proyectos desde Excel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      Importar Excel
+    </button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" />
+    <button id="btnExport" class="btn-export" title="Exportar proyectos a Excel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
+      </svg>
+      Exportar Excel
+    </button>
+  </div>
 </div>
 
 <div class="grid" id="grid"></div>
@@ -915,10 +942,134 @@ async function loadProjects() {
   }
 }
 
+// ── Excel Export/Import Functions ──
+async function exportToExcel() {
+  try {
+    // Prepare data for export
+    const exportData = projects.map(p => ({
+      'Nombre': p.name || '',
+      'Líder': p.lider || '',
+      'Dependencia': p.dep || '',
+      'Descripción': p.descripcion || '',
+      'Fecha Inicio': p.fechaInicio || '',
+      'Fecha Fin': p.fechaFin || '',
+      'Progreso (%)': p.pct || 0,
+      'Horas Ahorradas': p.hours || 0
+    }));
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 30 }, // Nombre
+      { wch: 20 }, // Líder
+      { wch: 25 }, // Dependencia
+      { wch: 40 }, // Descripción
+      { wch: 12 }, // Fecha Inicio
+      { wch: 12 }, // Fecha Fin
+      { wch: 12 }, // Progreso
+      { wch: 15 }  // Horas Ahorradas
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Proyectos');
+
+    // Generate filename with current date
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `proyectos_liceo_ingles_${date}.xlsx`;
+
+    // Download file
+    XLSX.writeFile(wb, filename);
+  } catch (error) {
+    alert('Error al exportar: ' + error.message);
+    console.error('Export error:', error);
+  }
+}
+
+async function importFromExcel(file) {
+  try {
+    const reader = new FileReader();
+
+    reader.onload = async function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        // Get first sheet
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+        if (jsonData.length === 0) {
+          alert('El archivo Excel está vacío');
+          return;
+        }
+
+        // Confirm before replacing all projects
+        const confirmMsg = `¿Estás seguro de que quieres importar ${jsonData.length} proyectos? Esto reemplazará todos los proyectos existentes.`;
+        if (!confirm(confirmMsg)) {
+          return;
+        }
+
+        // Convert Excel data to project format
+        const importedProjects = jsonData.map(row => ({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          name: row['Nombre'] || '',
+          lider: row['Líder'] || '',
+          dep: row['Dependencia'] || '',
+          descripcion: row['Descripción'] || '',
+          fechaInicio: row['Fecha Inicio'] || '',
+          fechaFin: row['Fecha Fin'] || '',
+          pct: Math.max(0, Math.min(100, Math.round(Number(row['Progreso (%)']) || 0))),
+          hours: Math.max(0, Math.round(Number(row['Horas Ahorradas']) || 0))
+        }));
+
+        // Replace all projects via API
+        await api('PUT', '', importedProjects);
+
+        // Reload projects
+        await loadProjects();
+
+        alert(`✓ ${importedProjects.length} proyectos importados exitosamente`);
+      } catch (error) {
+        alert('Error al procesar el archivo Excel: ' + error.message);
+        console.error('Import processing error:', error);
+      }
+    };
+
+    reader.onerror = function() {
+      alert('Error al leer el archivo');
+    };
+
+    reader.readAsArrayBuffer(file);
+  } catch (error) {
+    alert('Error al importar: ' + error.message);
+    console.error('Import error:', error);
+  }
+}
+
+// ── Excel Button Event Listeners ──
+document.getElementById('btnExport').addEventListener('click', exportToExcel);
+
+document.getElementById('btnImport').addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    importFromExcel(file);
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  }
+});
+
 loadLeaders();
 loadProjects();
 setInterval(loadProjects, 15000);
 setInterval(loadLeaders, 30000);
 </script>
+<!-- SheetJS library for Excel export/import -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </body>
 </html>
