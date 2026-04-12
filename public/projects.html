@@ -126,6 +126,8 @@
   .modal .btn-delete { background: var(--red); color: #fff; }
   .modal .btn-delete:hover { opacity: 0.85; }
 
+  .guardian-today-banner:hover { background: var(--bg-card-hover); border-color: var(--border-focus); transform: translateY(-1px); }
+
   @media (max-width: 768px) {
     .projects-table-container { overflow-x: auto; }
     .projects-table { min-width: 800px; }
@@ -194,6 +196,19 @@
 </div>
 
 <div class="container">
+  <div class="guardian-today-banner" id="guardianBanner" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.75rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; transition: all 0.2s;" onclick="window.location.href='tech-guardian.html'" title="Ver calendario completo">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7; color: var(--accent);">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+    </svg>
+    <div style="flex: 1;">
+      <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.15rem;">Tech Guardian del Día</div>
+      <div style="font-size: 1.05rem; font-weight: 600; color: var(--accent);" id="guardianName">Cargando...</div>
+    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.5;">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </div>
+
   <div class="toolbar">
     <div class="filters">
       <label>Filtrar:</label>
@@ -583,6 +598,64 @@ async function confirmDelete() {
   }
 }
 
+// ── Load Guardian Today ──
+function loadGuardianToday() {
+  const guardianSchedule = [
+    { date: '07/04/2024', guardian: 'Breyns Solana' },
+    { date: '08/04/2024', guardian: 'Breyns Solana' },
+    { date: '09/04/2024', guardian: 'Breyns Solana' },
+    { date: '10/04/2024', guardian: 'Jorge Agudelo' },
+    { date: '14/04/2024', guardian: 'Jorge Agudelo' },
+    { date: '15/04/2024', guardian: 'Reyes Gomez' },
+    { date: '16/04/2024', guardian: 'Reyes Gomez' },
+    { date: '17/04/2024', guardian: 'Jorge Agudelo' },
+    { date: '18/04/2024', guardian: 'Jorge Agudelo' },
+    { date: '22/04/2024', guardian: 'Jorge Agudelo' },
+    { date: '23/04/2024', guardian: 'Breyns Escolar' },
+    { date: '24/04/2024', guardian: 'Jorge Agudelo' },
+    { date: '25/04/2024', guardian: 'Breyns Escolar' },
+    { date: '26/04/2024', guardian: 'Breyns Escolar' },
+    { date: '29/04/2024', guardian: 'Breyns Escolar' },
+    { date: '30/04/2024', guardian: 'Jorge Agudelo' },
+    { date: '01/05/2024', guardian: 'FESTIVO' },
+    { date: '02/05/2024', guardian: 'Jorge Agudelo' },
+    { date: '03/05/2024', guardian: 'Jorge Agudelo' },
+    { date: '06/05/2024', guardian: 'Semana Solana' },
+    { date: '07/05/2024', guardian: 'Jorge Agudelo' },
+    { date: '08/05/2024', guardian: 'Jorge Agudelo' },
+    { date: '09/05/2024', guardian: 'Breyns Escolar' },
+    { date: '10/05/2024', guardian: 'Breyns Escolar' },
+  ];
+
+  function parseDate(dateStr) {
+    const [day, month, year] = dateStr.split('/');
+    return new Date(year, month - 1, day);
+  }
+
+  function isSameDay(date1, date2) {
+    return date1.getDate() === date2.getDate() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getFullYear() === date2.getFullYear();
+  }
+
+  const today = new Date();
+  const todayEntry = guardianSchedule.find(item => {
+    const itemDate = parseDate(item.date);
+    return isSameDay(itemDate, today);
+  });
+
+  const guardianEl = document.getElementById('guardianName');
+  if (todayEntry) {
+    guardianEl.textContent = todayEntry.guardian;
+    if (todayEntry.guardian === 'FESTIVO') {
+      guardianEl.style.color = 'var(--amber)';
+    }
+  } else {
+    guardianEl.textContent = 'No asignado';
+    guardianEl.style.color = 'var(--text-muted)';
+  }
+}
+
 // ── Excel Export/Import ──
 async function exportToExcel() {
   try {
@@ -701,6 +774,7 @@ deleteModal.addEventListener('click', (e) => {
 // ── Initialize ──
 loadLeaders();
 loadProjects();
+loadGuardianToday();
 setInterval(loadProjects, 15000);
 </script>
 <!-- SheetJS library for Excel export/import -->

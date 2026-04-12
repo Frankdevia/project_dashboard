@@ -98,7 +98,7 @@
 
   .progress-overview { max-width: 1200px; margin: 0 auto; padding: 0 2rem 2rem; }
   .progress-overview h2 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; color: var(--text); margin-bottom: 1.5rem; }
-  .projects-summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+  .projects-summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
   .project-summary-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; transition: all 0.2s; cursor: pointer; }
   .project-summary-card:hover { background: var(--bg-card-hover); border-color: var(--border-focus); transform: translateY(-2px); }
   .project-summary-card h3 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; color: var(--text); margin-bottom: 0.75rem; }
@@ -376,6 +376,40 @@ function colorFor(p) {
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+// ── SVG gauge builder ──
+function gaugeSVG(pct) {
+  const c = colorFor(pct);
+  const r = 68, cx = 90, cy = 88;
+  const sa = Math.PI * 0.75, ea = Math.PI * 2.25;
+  const total = ea - sa;
+  const va = sa + total * (pct / 100);
+  const pt = a => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const [bx1, by1] = pt(sa);
+  const [bx2, by2] = pt(ea);
+  const [vx, vy]   = pt(va);
+  const lv = (va - sa) > Math.PI ? 1 : 0;
+  const nl = 50;
+  const [nx, ny] = [cx + nl * Math.cos(va), cy + nl * Math.sin(va)];
+  let ticks = '';
+  for (let i = 0; i <= 10; i++) {
+    const a = sa + total * (i / 10);
+    const inner = r - 8, outer = r + 1;
+    const [ix, iy] = [cx + inner * Math.cos(a), cy + inner * Math.sin(a)];
+    const [ox, oy] = [cx + outer * Math.cos(a), cy + outer * Math.sin(a)];
+    ticks += `<line x1="${ix}" y1="${iy}" x2="${ox}" y2="${oy}" stroke="rgba(255,255,255,0.12)" stroke-width="${i % 5 === 0 ? 2 : 1}"/>`;
+  }
+  return `<svg viewBox="0 0 180 130" width="180" height="130" xmlns="http://www.w3.org/2000/svg">
+    <path d="M${bx1},${by1} A${r},${r} 0 1 1 ${bx2},${by2}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="12" stroke-linecap="round"/>
+    ${pct > 0 ? `<path d="M${bx1},${by1} A${r},${r} 0 ${lv} 1 ${vx},${vy}" fill="none" stroke="${c.arc}" stroke-width="12" stroke-linecap="round" style="filter:drop-shadow(0 0 6px ${c.arc}55)"/>` : ''}
+    ${ticks}
+    <circle cx="${cx}" cy="${cy}" r="5" fill="${c.arc}"/>
+    <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${c.text}" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="2.5" fill="#0e1117"/>
+    <text x="24" y="122" font-size="10" fill="rgba(255,255,255,0.2)" font-family="'Outfit',sans-serif">0</text>
+    <text x="143" y="122" font-size="10" fill="rgba(255,255,255,0.2)" font-family="'Outfit',sans-serif">100</text>
+  </svg>`;
+}
+
 // ── Render ──
 function render() {
   summary.style.display = projects.length ? 'flex' : 'none';
@@ -422,19 +456,26 @@ function render() {
     const leader = leaders.find(l => l.name === p.lider);
 
     const card = document.createElement('div');
-    card.className = 'project-summary-card';
+    card.className = 'card';
     card.onclick = () => window.location.href = 'projects.html';
+    card.style.cursor = 'pointer';
+
+    // Leader avatar
+    let avatarHTML = '';
+    if (leader && leader.photo) {
+      avatarHTML = `<div class="leader-avatar"><img src="${leader.photo}" alt="${esc(leader.name)}"></div>`;
+    } else if (p.lider) {
+      avatarHTML = `<div class="leader-avatar no-photo"></div>`;
+    }
 
     card.innerHTML = `
-      <h3>${esc(p.name)}</h3>
-      <div class="leader-name">Líder: <strong>${p.lider || 'Sin asignar'}</strong></div>
-      <div class="progress-bar">
-        <div class="progress-fill" style="width: ${p.pct}%; background: ${c.arc};"></div>
-      </div>
-      <div class="progress-text">
-        <span>${c.label}</span>
-        <strong style="color: ${c.text};">${Math.round(p.pct)}%</strong>
-      </div>
+      ${gaugeSVG(p.pct)}
+      <div class="name">${esc(p.name)}</div>
+      <div class="pct-label" style="color:${c.text}">${Math.round(p.pct)}%</div>
+      <div class="status-tag" style="background:${c.tag}; color:${c.text}">${c.label}</div>
+      ${p.lider ? `<div class="meta"><div class="lider-badge">${esc(p.lider)}</div></div>` : ''}
+      ${p.hours ? `<div class="meta"><span class="hours-val">${p.hours.toLocaleString()}h</span> ahorradas</div>` : ''}
+      ${avatarHTML}
     `;
 
     projectsSummary.appendChild(card);
