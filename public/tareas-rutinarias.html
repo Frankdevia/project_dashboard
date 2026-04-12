@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tareas Rutinarias - Project Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e1117;
+    --bg-card: #161b22;
+    --bg-card-hover: #1c2129;
+    --bg-input: #0d1117;
+    --border: rgba(255,255,255,0.08);
+    --border-focus: rgba(255,255,255,0.2);
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #484f58;
+    --accent: #58a6ff;
+    --red: #f85149;
+    --amber: #d29922;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --purple: #bc8cff;
+    --orange: #f78166;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --font-display: 'Outfit', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── Header / Nav ── */
+  .header {
+    padding: 2.5rem 2rem 1.5rem;
+    max-width: 1800px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .header-left { flex: 1; }
+  .header-left h1 { font-family: var(--font-display); font-weight: 700; font-size: 2rem; letter-spacing: -0.03em; }
+  .header-left h1 span { color: var(--text-dim); font-weight: 300; }
+  .header-left p { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
+
+  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+  .nav-links a { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 1.2rem; color: var(--text); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+  .nav-links a svg { opacity: 0.7; transition: opacity 0.2s; }
+  .nav-links a:hover { background: var(--bg-card-hover); border-color: var(--border-focus); }
+  .nav-links a:hover svg { opacity: 1; }
+  .nav-links a.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .nav-links a.active svg { opacity: 1; }
+
+  /* ── Layout ── */
+  .layout {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 0 2rem 3rem;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+
+  .main-content { flex: 1; min-width: 0; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 1.5rem;
+  }
+
+  .sidebar-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .sidebar-title {
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+  }
+
+  .member-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+  .member-card:last-child { margin-bottom: 0; }
+
+  .member-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--bg-card-hover);
+    border: 2px solid var(--border);
+  }
+
+  .member-avatar-placeholder {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #000;
+    flex-shrink: 0;
+  }
+
+  .member-info { flex: 1; min-width: 0; }
+  .member-name { font-size: 0.85rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .member-stats { display: flex; gap: 0.75rem; margin-top: 0.35rem; }
+  .member-stat { font-size: 0.75rem; color: var(--text-muted); }
+  .member-stat strong { color: var(--accent); }
+  .member-stat .ep-val { color: var(--amber); }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .toolbar-filters { display: flex; gap: 0.75rem; flex: 1; flex-wrap: wrap; align-items: center; }
+
+  .toolbar-filters select {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.9rem;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  .toolbar-filters select:focus { border-color: var(--border-focus); }
+
+  .toolbar-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .btn { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 1rem; color: var(--text); font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+  .btn:hover { background: var(--bg-card-hover); border-color: var(--border-focus); }
+  .btn svg { opacity: 0.7; flex-shrink: 0; }
+  .btn:hover svg { opacity: 1; }
+  .btn-add { background: var(--accent); border-color: var(--accent); color: #000; }
+  .btn-add:hover { opacity: 0.85; }
+  .btn-export { background: var(--green); border-color: var(--green); color: #000; }
+  .btn-export:hover { opacity: 0.85; }
+  .btn-cat { background: var(--purple); border-color: var(--purple); color: #000; }
+  .btn-cat:hover { opacity: 0.85; }
+
+  /* ── Table ── */
+  .table-wrapper { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .table-scroll { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  thead { background: var(--bg-input); position: sticky; top: 0; z-index: 10; }
+  th { padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.75rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); }
+  tbody tr { transition: background 0.2s; }
+  tbody tr:hover { background: var(--bg-card-hover); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .td-desc { max-width: 260px; color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .badge { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 6px; font-weight: 600; font-size: 0.75rem; white-space: nowrap; }
+  .badge-cat { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid rgba(188,140,255,0.25); }
+  .badge-enc { background: rgba(88,166,255,0.12); color: var(--accent); border: 1px solid rgba(88,166,255,0.2); }
+
+  /* Expertise points stars */
+  .ep-stars { display: flex; gap: 2px; }
+  .ep-star { width: 14px; height: 14px; border-radius: 2px; }
+  .ep-star.filled { background: var(--amber); }
+  .ep-star.empty { background: var(--bg-input); border: 1px solid var(--border); }
+
+  .row-actions { display: flex; gap: 0.5rem; }
+  .btn-icon { background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.5rem; color: var(--text-muted); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; }
+  .btn-icon:hover { background: var(--bg-card-hover); color: var(--text); border-color: var(--border-focus); }
+  .btn-icon.del:hover { border-color: var(--red); color: var(--red); }
+
+  .empty-state { padding: 3rem 2rem; text-align: center; color: var(--text-muted); }
+  .empty-state p { margin-top: 0.5rem; font-size: 0.85rem; }
+
+  /* ── Modal ── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(12px);
+    transition: transform 0.2s;
+  }
+  .modal-backdrop.open .modal { transform: translateY(0); }
+
+  .modal-header {
+    padding: 1.5rem 1.5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .modal-header h3 { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; }
+  .modal-close { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.4rem; line-height: 1; padding: 0.2rem; transition: color 0.2s; }
+  .modal-close:hover { color: var(--text); }
+
+  .modal-body { padding: 0 1.5rem 1.5rem; }
+  .form-group { margin-bottom: 1.1rem; }
+  .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    padding: 0.6rem 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+  .form-textarea { resize: vertical; min-height: 80px; }
+  .form-select { cursor: pointer; }
+
+  /* EP picker */
+  .ep-picker { display: flex; gap: 0.5rem; }
+  .ep-btn {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-muted);
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ep-btn:hover { border-color: var(--amber); color: var(--amber); }
+  .ep-btn.selected { background: var(--amber); border-color: var(--amber); color: #000; }
+
+  .form-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
+  .btn-cancel { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-family: var(--font-body); font-size: 0.9rem; padding: 0.6rem 1.2rem; cursor: pointer; transition: all 0.2s; }
+  .btn-cancel:hover { border-color: var(--border-focus); color: var(--text); }
+  .btn-save { background: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); color: #000; font-family: var(--font-body); font-size: 0.9rem; font-weight: 700; padding: 0.6rem 1.5rem; cursor: pointer; transition: opacity 0.2s; }
+  .btn-save:hover { opacity: 0.85; }
+
+  /* Category modal list */
+  .cat-list { list-style: none; margin-bottom: 1rem; max-height: 220px; overflow-y: auto; }
+  .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.9rem; }
+  .cat-item:hover { background: var(--bg-card-hover); }
+  .cat-item-del { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.1rem; transition: color 0.2s; padding: 0; }
+  .cat-item-del:hover { color: var(--red); }
+  .cat-add-row { display: flex; gap: 0.5rem; }
+  .cat-add-row .form-input { flex: 1; }
+
+  /* Confirm dialog */
+  .confirm-modal { max-width: 400px; }
+  .confirm-modal .modal-body p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+
+  @media (max-width: 900px) {
+    .layout { flex-direction: column-reverse; }
+    .sidebar { width: 100%; position: static; }
+  }
+  @media (max-width: 600px) {
+    .header { padding: 1.5rem 1rem 1rem; }
+    .layout { padding: 0 1rem 2rem; }
+    .header-left h1 { font-size: 1.5rem; }
+    th, td { padding: 0.5rem; font-size: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Tareas Rutinarias <span>/ gestión de tareas</span></h1>
+    <p>Registro y asignación de tareas recurrentes del equipo</p>
+  </div>
+  <div class="nav-links">
+    <a href="index.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      Dashboard
+    </a>
+    <a href="projects.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+      Proyectos
+    </a>
+    <a href="gantt.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+      Gantt
+    </a>
+    <a href="by-leader.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      Por Líder
+    </a>
+    <a href="leaders.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      Líderes
+    </a>
+    <a href="tech-guardian.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+      Tech Guardian
+    </a>
+    <a href="tareas-rutinarias.html" class="active">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+      Tareas Rutinarias
+    </a>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- Main content -->
+  <div class="main-content">
+    <div class="toolbar">
+      <div class="toolbar-filters">
+        <select id="filterCat" onchange="renderTable()">
+          <option value="">Todas las categorías</option>
+        </select>
+        <select id="filterEnc" onchange="renderTable()">
+          <option value="">Todos los encargados</option>
+        </select>
+      </div>
+      <div class="toolbar-actions">
+        <button class="btn btn-cat" onclick="openCatModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+          Categorías
+        </button>
+        <button class="btn btn-export" onclick="exportExcel()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Exportar
+        </button>
+        <button class="btn btn-add" onclick="openAddModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Nueva Tarea
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Categoría</th>
+              <th>Nombre de Tarea</th>
+              <th>Encargado</th>
+              <th>Dificultad</th>
+              <th>Descripción</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tareasBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-card">
+      <div class="sidebar-title">Resumen por encargado</div>
+      <div id="sidebarMembers">
+        <div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:1rem 0">Cargando...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add/Edit Modal ── -->
+<div class="modal-backdrop" id="taskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Nueva Tarea</h3>
+      <button class="modal-close" onclick="closeTaskModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label>Categoría</label>
+        <select class="form-select" id="fieldCat">
+          <option value="">Seleccionar categoría</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Nombre de Tarea <span style="color:var(--red)">*</span></label>
+        <input type="text" class="form-input" id="fieldNombre" placeholder="Ej: Revisión de backups">
+      </div>
+      <div class="form-group">
+        <label>Encargado</label>
+        <select class="form-select" id="fieldEnc">
+          <option value="">Sin asignar</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Dificultad (Expertise Points)</label>
+        <div class="ep-picker" id="epPicker">
+          <button class="ep-btn" data-val="1" onclick="selectEP(1)">1</button>
+          <button class="ep-btn" data-val="2" onclick="selectEP(2)">2</button>
+          <button class="ep-btn" data-val="3" onclick="selectEP(3)">3</button>
+          <button class="ep-btn" data-val="4" onclick="selectEP(4)">4</button>
+          <button class="ep-btn" data-val="5" onclick="selectEP(5)">5</button>
+        </div>
+        <div style="margin-top:0.4rem;font-size:0.75rem;color:var(--text-muted)">1 = Fácil &nbsp;|&nbsp; 5 = Muy difícil</div>
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <textarea class="form-textarea" id="fieldDesc" placeholder="Descripción opcional de la tarea..."></textarea>
+      </div>
+      <div class="form-footer">
+        <button class="btn-cancel" onclick="closeTaskModal()">Cancelar</button>
+        <button class="btn-save" onclick="saveTask()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Categories Modal ── -->
+<div class="modal-backdrop" id="catModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Gestionar Categorías</h3>
+      <button class="modal-close" onclick="closeCatModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <ul class="cat-list" id="catList"></ul>
+      <div class="cat-add-row">
+        <input type="text" class="form-input" id="newCatName" placeholder="Nueva categoría..." onkeydown="if(event.key==='Enter')addCategory()">
+        <button class="btn btn-add" onclick="addCategory()">Agregar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirm Delete Modal ── -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal confirm-modal">
+    <div class="modal-header">
+      <h3>Eliminar tarea</h3>
+      <button class="modal-close" onclick="closeConfirm()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p>¿Estás seguro de que deseas eliminar esta tarea? Esta acción no se puede deshacer.</p>
+      <div class="form-footer">
+        <button class="btn-cancel" onclick="closeConfirm()">Cancelar</button>
+        <button class="btn-save" style="background:var(--red);border-color:var(--red);color:#fff" onclick="confirmDelete()">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let tareas = [];
+let categorias = [];
+let leaders = [];
+let selectedEP = 1;
+let pendingDeleteId = null;
+
+// ── API helpers ──
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ── Load data ──
+async function loadAll() {
+  [tareas, categorias, leaders] = await Promise.all([
+    api('GET', '/api/tareas-rutinarias'),
+    api('GET', '/api/categorias-tareas'),
+    api('GET', '/api/leaders')
+  ]);
+  populateSelects();
+  renderTable();
+  renderSidebar();
+}
+
+// ── Populate selects ──
+function populateSelects() {
+  // Filter selects
+  const filterCat = document.getElementById('filterCat');
+  const filterEnc = document.getElementById('filterEnc');
+  const prevCat = filterCat.value;
+  const prevEnc = filterEnc.value;
+
+  filterCat.innerHTML = '<option value="">Todas las categorías</option>' +
+    categorias.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+  filterCat.value = prevCat;
+
+  filterEnc.innerHTML = '<option value="">Todos los encargados</option>' +
+    leaders.map(l => `<option value="${esc(l.name)}">${esc(l.name)}</option>`).join('');
+  filterEnc.value = prevEnc;
+
+  // Modal selects
+  const fieldCat = document.getElementById('fieldCat');
+  const fieldEnc = document.getElementById('fieldEnc');
+  fieldCat.innerHTML = '<option value="">Seleccionar categoría</option>' +
+    categorias.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+  fieldEnc.innerHTML = '<option value="">Sin asignar</option>' +
+    leaders.map(l => `<option value="${esc(l.name)}">${esc(l.name)}</option>`).join('');
+}
+
+// ── Render table ──
+function renderTable() {
+  const tbody = document.getElementById('tareasBody');
+  const catFilter = document.getElementById('filterCat').value;
+  const encFilter = document.getElementById('filterEnc').value;
+
+  let filtered = tareas.filter(t => {
+    if (catFilter && t.categoria !== catFilter) return false;
+    if (encFilter && t.encargado !== encFilter) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+      <p>${tareas.length === 0 ? 'No hay tareas registradas. ¡Agrega la primera!' : 'Sin resultados para los filtros seleccionados.'}</p>
+    </div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(t => `
+    <tr>
+      <td>${t.categoria ? `<span class="badge badge-cat">${esc(t.categoria)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td><strong>${esc(t.nombre)}</strong></td>
+      <td>${t.encargado ? `<span class="badge badge-enc">${esc(t.encargado)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td>${renderEPStars(t.expertisePoints)}</td>
+      <td class="td-desc" title="${esc(t.descripcion || '')}">${t.descripcion ? esc(t.descripcion) : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn-icon" onclick="openEditModal('${t.id}')" title="Editar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </button>
+          <button class="btn-icon del" onclick="askDelete('${t.id}')" title="Eliminar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4h6v2"></path></svg>
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ── Render sidebar ──
+function renderSidebar() {
+  const container = document.getElementById('sidebarMembers');
+  if (leaders.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:1rem 0">No hay líderes registrados</div>';
+    return;
+  }
+
+  container.innerHTML = leaders.map(l => {
+    const myTareas = tareas.filter(t => t.encargado === l.name);
+    const totalEP = myTareas.reduce((sum, t) => sum + (parseInt(t.expertisePoints) || 0), 0);
+    const initials = l.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+    const avatar = l.photo
+      ? `<img src="${l.photo}" class="member-avatar" alt="${esc(l.name)}">`
+      : `<div class="member-avatar-placeholder">${initials}</div>`;
+    return `
+      <div class="member-card">
+        ${avatar}
+        <div class="member-info">
+          <div class="member-name">${esc(l.name)}</div>
+          <div class="member-stats">
+            <span class="member-stat"><strong>${myTareas.length}</strong> tareas</span>
+            <span class="member-stat"><span class="ep-val"><strong>${totalEP}</strong> EP</span></span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── EP Stars ──
+function renderEPStars(ep) {
+  ep = parseInt(ep) || 1;
+  let html = '<div class="ep-stars">';
+  for (let i = 1; i <= 5; i++) {
+    html += `<div class="ep-star ${i <= ep ? 'filled' : 'empty'}"></div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+// ── Task Modal ──
+function openAddModal() {
+  document.getElementById('modalTitle').textContent = 'Nueva Tarea';
+  document.getElementById('editId').value = '';
+  document.getElementById('fieldCat').value = '';
+  document.getElementById('fieldNombre').value = '';
+  document.getElementById('fieldEnc').value = '';
+  document.getElementById('fieldDesc').value = '';
+  selectEP(1);
+  document.getElementById('taskModal').classList.add('open');
+  setTimeout(() => document.getElementById('fieldNombre').focus(), 100);
+}
+
+function openEditModal(id) {
+  const t = tareas.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('modalTitle').textContent = 'Editar Tarea';
+  document.getElementById('editId').value = t.id;
+  document.getElementById('fieldCat').value = t.categoria || '';
+  document.getElementById('fieldNombre').value = t.nombre;
+  document.getElementById('fieldEnc').value = t.encargado || '';
+  document.getElementById('fieldDesc').value = t.descripcion || '';
+  selectEP(t.expertisePoints || 1);
+  document.getElementById('taskModal').classList.add('open');
+}
+
+function closeTaskModal() {
+  document.getElementById('taskModal').classList.remove('open');
+}
+
+async function saveTask() {
+  const id = document.getElementById('editId').value;
+  const nombre = document.getElementById('fieldNombre').value.trim();
+  if (!nombre) { document.getElementById('fieldNombre').focus(); return; }
+
+  const payload = {
+    nombre,
+    categoria: document.getElementById('fieldCat').value,
+    encargado: document.getElementById('fieldEnc').value,
+    expertisePoints: selectedEP,
+    descripcion: document.getElementById('fieldDesc').value.trim()
+  };
+
+  try {
+    if (id) {
+      const updated = await api('PUT', `/api/tareas-rutinarias/${id}`, payload);
+      const idx = tareas.findIndex(t => t.id === id);
+      if (idx !== -1) tareas[idx] = updated;
+    } else {
+      const created = await api('POST', '/api/tareas-rutinarias', payload);
+      tareas.push(created);
+    }
+    closeTaskModal();
+    renderTable();
+    renderSidebar();
+  } catch(e) {
+    alert('Error al guardar: ' + e.message);
+  }
+}
+
+// ── EP Picker ──
+function selectEP(val) {
+  selectedEP = val;
+  document.querySelectorAll('.ep-btn').forEach(btn => {
+    btn.classList.toggle('selected', parseInt(btn.dataset.val) === val);
+  });
+}
+
+// ── Delete ──
+function askDelete(id) {
+  pendingDeleteId = id;
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeConfirm() {
+  pendingDeleteId = null;
+  document.getElementById('confirmModal').classList.remove('open');
+}
+async function confirmDelete() {
+  if (!pendingDeleteId) return;
+  try {
+    await api('DELETE', `/api/tareas-rutinarias/${pendingDeleteId}`);
+    tareas = tareas.filter(t => t.id !== pendingDeleteId);
+    closeConfirm();
+    renderTable();
+    renderSidebar();
+  } catch(e) {
+    alert('Error al eliminar: ' + e.message);
+  }
+}
+
+// ── Categories Modal ──
+function openCatModal() {
+  renderCatList();
+  document.getElementById('newCatName').value = '';
+  document.getElementById('catModal').classList.add('open');
+}
+function closeCatModal() {
+  document.getElementById('catModal').classList.remove('open');
+}
+
+function renderCatList() {
+  const list = document.getElementById('catList');
+  if (categorias.length === 0) {
+    list.innerHTML = '<li style="color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0.75rem">Sin categorías</li>';
+    return;
+  }
+  list.innerHTML = categorias.map(c => `
+    <li class="cat-item">
+      <span>${esc(c.name)}</span>
+      <button class="cat-item-del" onclick="deleteCategory('${c.id}')" title="Eliminar">&times;</button>
+    </li>
+  `).join('');
+}
+
+async function addCategory() {
+  const name = document.getElementById('newCatName').value.trim();
+  if (!name) return;
+  try {
+    const newCat = await api('POST', '/api/categorias-tareas', { name });
+    categorias.push(newCat);
+    document.getElementById('newCatName').value = '';
+    renderCatList();
+    populateSelects();
+  } catch(e) {
+    if (e.message.includes('409') || e.message.includes('already')) {
+      alert('Esa categoría ya existe.');
+    } else {
+      alert('Error: ' + e.message);
+    }
+  }
+}
+
+async function deleteCategory(id) {
+  const cat = categorias.find(c => c.id === id);
+  if (!cat) return;
+  const usedBy = tareas.filter(t => t.categoria === cat.name).length;
+  if (usedBy > 0 && !confirm(`Esta categoría está asignada a ${usedBy} tarea(s). ¿Eliminar de todos modos?`)) return;
+  try {
+    await api('DELETE', `/api/categorias-tareas/${id}`);
+    categorias = categorias.filter(c => c.id !== id);
+    renderCatList();
+    populateSelects();
+  } catch(e) {
+    alert('Error al eliminar: ' + e.message);
+  }
+}
+
+// ── Export Excel ──
+function exportExcel() {
+  const rows = [['Categoría', 'Nombre de Tarea', 'Encargado', 'Expertise Points', 'Descripción']];
+  tareas.forEach(t => {
+    rows.push([t.categoria || '', t.nombre, t.encargado || '', t.expertisePoints, t.descripcion || '']);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 18 }, { wch: 32 }, { wch: 20 }, { wch: 18 }, { wch: 40 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Tareas Rutinarias');
+  XLSX.writeFile(wb, 'tareas-rutinarias.xlsx');
+}
+
+// ── Escape HTML ──
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Close modals on backdrop click ──
+['taskModal','catModal','confirmModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (e.target === document.getElementById(id)) {
+      document.getElementById(id).classList.remove('open');
+      if (id === 'confirmModal') pendingDeleteId = null;
+    }
+  });
+});
+
+// ── Init ──
+loadAll();
+</script>
+</body>
+</html>

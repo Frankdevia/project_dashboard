@@ -7,6 +7,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data', 'projects.json');
 const LEADERS_FILE = path.join(__dirname, 'data', 'leaders.json');
+const TAREAS_FILE = path.join(__dirname, 'data', 'tareas-rutinarias.json');
+const CATEGORIAS_FILE = path.join(__dirname, 'data', 'categorias-tareas.json');
 
 // Ensure data directory exists
 fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
@@ -19,6 +21,18 @@ if (!fs.existsSync(LEADERS_FILE)) {
     { id: '4', name: 'Brian Escobar', photo: null }
   ];
   fs.writeFileSync(LEADERS_FILE, JSON.stringify(defaultLeaders, null, 2));
+}
+if (!fs.existsSync(TAREAS_FILE)) fs.writeFileSync(TAREAS_FILE, '[]');
+if (!fs.existsSync(CATEGORIAS_FILE)) {
+  const defaultCats = [
+    { id: 'cat1', name: 'Infraestructura' },
+    { id: 'cat2', name: 'Seguridad' },
+    { id: 'cat3', name: 'Monitoreo' },
+    { id: 'cat4', name: 'Documentación' },
+    { id: 'cat5', name: 'Soporte' },
+    { id: 'cat6', name: 'Desarrollo' }
+  ];
+  fs.writeFileSync(CATEGORIAS_FILE, JSON.stringify(defaultCats, null, 2));
 }
 
 // Ensure uploads directory exists
@@ -203,6 +217,91 @@ app.post('/api/leaders/:id/photo', upload.single('photo'), (req, res) => {
   leaders[idx].photo = `/uploads/${req.file.filename}`;
   writeLeaders(leaders);
   res.json(leaders[idx]);
+});
+
+// ── Tareas Rutinarias API ──
+
+function readTareas() {
+  try { return JSON.parse(fs.readFileSync(TAREAS_FILE, 'utf8')); } catch { return []; }
+}
+function writeTareas(data) {
+  fs.writeFileSync(TAREAS_FILE, JSON.stringify(data, null, 2));
+}
+function readCategorias() {
+  try { return JSON.parse(fs.readFileSync(CATEGORIAS_FILE, 'utf8')); } catch { return []; }
+}
+function writeCategorias(data) {
+  fs.writeFileSync(CATEGORIAS_FILE, JSON.stringify(data, null, 2));
+}
+
+// GET all tareas
+app.get('/api/tareas-rutinarias', (req, res) => res.json(readTareas()));
+
+// POST add tarea
+app.post('/api/tareas-rutinarias', (req, res) => {
+  const tareas = readTareas();
+  const t = req.body;
+  if (!t.nombre) return res.status(400).json({ error: 'nombre required' });
+  t.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  t.categoria = t.categoria || '';
+  t.encargado = t.encargado || '';
+  t.expertisePoints = Math.max(1, Math.min(5, parseInt(t.expertisePoints) || 1));
+  t.descripcion = t.descripcion || '';
+  t.createdAt = new Date().toISOString();
+  tareas.push(t);
+  writeTareas(tareas);
+  res.json(t);
+});
+
+// PUT update tarea
+app.put('/api/tareas-rutinarias/:id', (req, res) => {
+  const tareas = readTareas();
+  const idx = tareas.findIndex(t => t.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  const u = req.body;
+  if (u.nombre !== undefined) tareas[idx].nombre = u.nombre;
+  if (u.categoria !== undefined) tareas[idx].categoria = u.categoria;
+  if (u.encargado !== undefined) tareas[idx].encargado = u.encargado;
+  if (u.expertisePoints !== undefined) tareas[idx].expertisePoints = Math.max(1, Math.min(5, parseInt(u.expertisePoints) || 1));
+  if (u.descripcion !== undefined) tareas[idx].descripcion = u.descripcion;
+  writeTareas(tareas);
+  res.json(tareas[idx]);
+});
+
+// DELETE tarea
+app.delete('/api/tareas-rutinarias/:id', (req, res) => {
+  let tareas = readTareas();
+  const len = tareas.length;
+  tareas = tareas.filter(t => t.id !== req.params.id);
+  if (tareas.length === len) return res.status(404).json({ error: 'not found' });
+  writeTareas(tareas);
+  res.json({ ok: true });
+});
+
+// GET categorias
+app.get('/api/categorias-tareas', (req, res) => res.json(readCategorias()));
+
+// POST add categoria
+app.post('/api/categorias-tareas', (req, res) => {
+  const cats = readCategorias();
+  const c = req.body;
+  if (!c.name) return res.status(400).json({ error: 'name required' });
+  if (cats.find(x => x.name.toLowerCase() === c.name.toLowerCase()))
+    return res.status(409).json({ error: 'already exists' });
+  c.id = 'cat' + Date.now().toString(36);
+  cats.push(c);
+  writeCategorias(cats);
+  res.json(c);
+});
+
+// DELETE categoria
+app.delete('/api/categorias-tareas/:id', (req, res) => {
+  let cats = readCategorias();
+  const len = cats.length;
+  cats = cats.filter(c => c.id !== req.params.id);
+  if (cats.length === len) return res.status(404).json({ error: 'not found' });
+  writeCategorias(cats);
+  res.json({ ok: true });
 });
 
 // Debug endpoint to verify volume persistence

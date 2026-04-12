@@ -181,11 +181,128 @@
     border-left: 3px solid var(--accent);
   }
 
+  /* ── Filter Bar ── */
+  .filter-bar {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex: 1;
+    min-width: 160px;
+  }
+
+  .filter-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .filter-select, .filter-input {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    padding: 0.55rem 0.75rem;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .filter-select:focus, .filter-input:focus {
+    border-color: var(--border-focus);
+  }
+
+  .filter-input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.6);
+    cursor: pointer;
+  }
+
+  .filter-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .btn-filter {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-filter:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-focus);
+  }
+
+  .btn-filter.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+  }
+
+  .btn-clear {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-clear:hover {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .results-count {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-input);
+  }
+
+  .results-count span {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
   @media (max-width: 600px) {
     .header { padding-left: 1rem; padding-right: 1rem; }
     .container { padding-left: 1rem; padding-right: 1rem; }
     .header h1 { font-size: 1.5rem; }
     th, td { padding: 0.5rem; font-size: 0.75rem; }
+    .filter-bar { flex-direction: column; }
+    .filter-group { min-width: unset; }
   }
 </style>
 </head>
@@ -247,10 +364,40 @@
       </svg>
       Tech Guardian
     </a>
+    <a href="tareas-rutinarias.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+      Tareas Rutinarias
+    </a>
   </div>
 </div>
 
 <div class="container">
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label>Tech Guardian</label>
+      <select class="filter-select" id="filterGuardian">
+        <option value="">Todos</option>
+        <option value="Steven Solano">Steven Solano</option>
+        <option value="Bryan Escobar">Bryan Escobar</option>
+        <option value="Isaac Gómez">Isaac Gómez</option>
+        <option value="Jorge Agudelo">Jorge Agudelo</option>
+        <option value="FESTIVO">Festivos</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Fecha exacta</label>
+      <input type="date" class="filter-input" id="filterDate">
+    </div>
+    <div class="filter-buttons">
+      <button class="btn-filter" id="btnHoy" onclick="scrollToToday()">Ir a hoy</button>
+      <button class="btn-filter" id="btnSemana" onclick="filterSemana()">Semana actual</button>
+      <button class="btn-filter" id="btnMes" onclick="filterMes()">Mes actual</button>
+      <button class="btn-clear" onclick="clearFilters()">Limpiar filtros</button>
+    </div>
+  </div>
+
   <div class="guardian-info">
     <h2>Rotación Tech Guardian - Equipo de Soporte Tecnológico</h2>
     <p><strong>Objetivo:</strong> Garantizar soporte tecnológico continuo rotando responsabilidades semanalmente entre los miembros del equipo.</p>
@@ -259,6 +406,7 @@
   </div>
 
   <div class="table-wrapper">
+    <div id="resultsCount" class="results-count" style="display:none"></div>
     <div class="table-scroll">
       <table id="guardianTable">
         <thead>
@@ -546,23 +694,26 @@ const guardianSchedule = [
   { week: '', date: '02/04/2027', day: 'Viernes', guardian: 'FESTIVO', almuerzo: '', cob12: '', cob1: '', reunion: '', notes: 'Viernes Santo (2da semana)' },
 ];
 
+// ── Filter State ──
+let activeFilter = { guardian: '', date: '', mode: '' }; // mode: '' | 'semana' | 'mes'
+
 function getGuardianBadgeClass(guardian) {
-  const guardianLower = guardian.toLowerCase();
-  if (guardianLower.includes('solana')) return 'semana-solana';
-  if (guardianLower.includes('escolar')) return 'reyes-escolar';
-  if (guardianLower.includes('agudelo')) return 'jorge-agudelo';
-  if (guardianLower.includes('gomez') || guardianLower.includes('gómez')) return 'reyes-gomez';
-  if (guardianLower.includes('festivo')) return 'festivo';
+  const g = guardian.toLowerCase();
+  if (g.includes('solano')) return 'semana-solana';
+  if (g.includes('escobar')) return 'reyes-escolar';
+  if (g.includes('agudelo')) return 'jorge-agudelo';
+  if (g.includes('gomez') || g.includes('gómez')) return 'reyes-gomez';
+  if (g.includes('festivo')) return 'festivo';
   return '';
 }
 
 function getDayBadgeClass(day) {
-  const dayLower = day.toLowerCase();
-  if (dayLower.includes('lunes')) return 'lunes';
-  if (dayLower.includes('martes')) return 'martes';
-  if (dayLower.includes('miercoles') || dayLower.includes('miércoles')) return 'miercoles';
-  if (dayLower.includes('jueves')) return 'jueves';
-  if (dayLower.includes('viernes')) return 'viernes';
+  const d = day.toLowerCase();
+  if (d.includes('lunes')) return 'lunes';
+  if (d.includes('martes')) return 'martes';
+  if (d.includes('miercoles') || d.includes('miércoles')) return 'miercoles';
+  if (d.includes('jueves')) return 'jueves';
+  if (d.includes('viernes')) return 'viernes';
   return '';
 }
 
@@ -577,14 +728,80 @@ function isSameDay(date1, date2) {
          date1.getFullYear() === date2.getFullYear();
 }
 
+function getWeekBounds(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun, 1=Mon ...
+  const diffToMon = (day === 0) ? -6 : 1 - day;
+  const mon = new Date(d); mon.setDate(d.getDate() + diffToMon); mon.setHours(0,0,0,0);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23,59,59,999);
+  return { start: mon, end: sun };
+}
+
+function getMonthBounds(date) {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+  return { start, end };
+}
+
+function applyFilters(data) {
+  const today = new Date();
+  return data.filter(item => {
+    const itemDate = parseDate(item.date);
+
+    // Guardian filter
+    if (activeFilter.guardian) {
+      if (activeFilter.guardian === 'FESTIVO') {
+        if (item.guardian !== 'FESTIVO') return false;
+      } else {
+        if (item.guardian !== activeFilter.guardian) return false;
+      }
+    }
+
+    // Date picker filter
+    if (activeFilter.date) {
+      const [y, m, d] = activeFilter.date.split('-');
+      const selected = new Date(y, m - 1, d);
+      if (!isSameDay(itemDate, selected)) return false;
+    }
+
+    // Week / month mode
+    if (activeFilter.mode === 'semana') {
+      const { start, end } = getWeekBounds(today);
+      if (itemDate < start || itemDate > end) return false;
+    } else if (activeFilter.mode === 'mes') {
+      const { start, end } = getMonthBounds(today);
+      if (itemDate < start || itemDate > end) return false;
+    }
+
+    return true;
+  });
+}
+
 function renderTable() {
   const tbody = document.getElementById('guardianBody');
+  const resultsDiv = document.getElementById('resultsCount');
   const today = new Date();
+  const filtered = applyFilters(guardianSchedule);
 
-  const html = guardianSchedule.map(item => {
+  // Show results count when filtering
+  const isFiltering = activeFilter.guardian || activeFilter.date || activeFilter.mode;
+  if (isFiltering) {
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = `Mostrando <span>${filtered.length}</span> de ${guardianSchedule.length} entradas`;
+  } else {
+    resultsDiv.style.display = 'none';
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted)">Sin resultados para los filtros seleccionados</td></tr>`;
+    return;
+  }
+
+  const html = filtered.map(item => {
     const itemDate = parseDate(item.date);
     const isToday = isSameDay(itemDate, today);
     const rowClass = isToday ? 'highlight-today' : '';
+    const todayAttr = isToday ? 'id="todayRow"' : '';
 
     const weekCell = item.week ? `<td><strong>${item.week}</strong></td>` : '<td></td>';
     const guardianBadge = `<span class="badge ${getGuardianBadgeClass(item.guardian)}">${item.guardian}</span>`;
@@ -592,7 +809,7 @@ function renderTable() {
     const notesCell = item.notes ? `<span class="badge no-labora">${item.notes}</span>` : '';
 
     return `
-      <tr class="${rowClass}">
+      <tr class="${rowClass}" ${todayAttr}>
         ${weekCell}
         <td>${item.date}</td>
         <td>${dayBadge}</td>
@@ -609,21 +826,83 @@ function renderTable() {
   tbody.innerHTML = html;
 }
 
+function scrollToToday() {
+  // Clear date filter so today is visible, keep guardian filter
+  activeFilter.date = '';
+  activeFilter.mode = '';
+  document.getElementById('filterDate').value = '';
+  setActiveBtn(null);
+  renderTable();
+  setTimeout(() => {
+    const row = document.getElementById('todayRow');
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 50);
+}
+
+function filterSemana() {
+  activeFilter.date = '';
+  activeFilter.mode = 'semana';
+  document.getElementById('filterDate').value = '';
+  setActiveBtn('btnSemana');
+  renderTable();
+}
+
+function filterMes() {
+  activeFilter.date = '';
+  activeFilter.mode = 'mes';
+  document.getElementById('filterDate').value = '';
+  setActiveBtn('btnMes');
+  renderTable();
+}
+
+function clearFilters() {
+  activeFilter = { guardian: '', date: '', mode: '' };
+  document.getElementById('filterGuardian').value = '';
+  document.getElementById('filterDate').value = '';
+  setActiveBtn(null);
+  renderTable();
+  setTimeout(() => {
+    const row = document.getElementById('todayRow');
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 50);
+}
+
+function setActiveBtn(id) {
+  ['btnSemana', 'btnMes'].forEach(btnId => {
+    document.getElementById(btnId).classList.toggle('active', btnId === id);
+  });
+}
+
+// Event listeners
+document.getElementById('filterGuardian').addEventListener('change', e => {
+  activeFilter.guardian = e.target.value;
+  renderTable();
+});
+
+document.getElementById('filterDate').addEventListener('change', e => {
+  activeFilter.date = e.target.value;
+  activeFilter.mode = '';
+  setActiveBtn(null);
+  renderTable();
+});
+
 // Get today's guardian
 function getTodayGuardian() {
   const today = new Date();
-  const todayEntry = guardianSchedule.find(item => {
-    const itemDate = parseDate(item.date);
-    return isSameDay(itemDate, today);
-  });
-
+  const todayEntry = guardianSchedule.find(item => isSameDay(parseDate(item.date), today));
   return todayEntry ? todayEntry.guardian : null;
 }
 
-// Expose function to global scope for use in other pages
 window.getTodayGuardian = getTodayGuardian;
 
+// Initial render + scroll to today
 renderTable();
+setTimeout(() => {
+  const row = document.getElementById('todayRow');
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}, 100);
 </script>
 </body>
 </html>
