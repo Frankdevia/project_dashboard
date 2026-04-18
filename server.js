@@ -46,6 +46,7 @@ const DATA_FILE = path.join(__dirname, 'data', 'projects.json');
 const LEADERS_FILE = path.join(__dirname, 'data', 'leaders.json');
 const TAREAS_FILE = path.join(__dirname, 'data', 'tareas-rutinarias.json');
 const CATEGORIAS_FILE = path.join(__dirname, 'data', 'categorias-tareas.json');
+const LEADER_TASKS_FILE = path.join(__dirname, 'data', 'leader-tasks.json');
 
 // Ensure data directory exists
 fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
@@ -60,6 +61,7 @@ if (!fs.existsSync(LEADERS_FILE)) {
   fs.writeFileSync(LEADERS_FILE, JSON.stringify(defaultLeaders, null, 2));
 }
 if (!fs.existsSync(TAREAS_FILE)) fs.writeFileSync(TAREAS_FILE, '[]');
+if (!fs.existsSync(LEADER_TASKS_FILE)) fs.writeFileSync(LEADER_TASKS_FILE, '[]');
 if (!fs.existsSync(CATEGORIAS_FILE)) {
   const defaultCats = [
     { id: 'cat1', name: 'Infraestructura' },
@@ -304,6 +306,12 @@ function readCategorias() {
 function writeCategorias(data) {
   fs.writeFileSync(CATEGORIAS_FILE, JSON.stringify(data, null, 2));
 }
+function readLeaderTasks() {
+  try { return JSON.parse(fs.readFileSync(LEADER_TASKS_FILE, 'utf8')); } catch { return []; }
+}
+function writeLeaderTasks(data) {
+  fs.writeFileSync(LEADER_TASKS_FILE, JSON.stringify(data, null, 2));
+}
 
 // GET all tareas
 app.get('/api/tareas-rutinarias', (req, res) => res.json(readTareas()));
@@ -372,6 +380,44 @@ app.delete('/api/categorias-tareas/:id', (req, res) => {
   cats = cats.filter(c => c.id !== req.params.id);
   if (cats.length === len) return res.status(404).json({ error: 'not found' });
   writeCategorias(cats);
+  res.json({ ok: true });
+});
+
+// ── Leader Tasks API ──
+
+app.get('/api/leader-tasks', (req, res) => res.json(readLeaderTasks()));
+
+app.post('/api/leader-tasks', (req, res) => {
+  const tasks = readLeaderTasks();
+  const t = req.body;
+  if (!t.nombre) return res.status(400).json({ error: 'nombre required' });
+  t.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  t.descripcion = t.descripcion || '';
+  t.estado = ['sin-iniciar', 'en-progreso', 'completada'].includes(t.estado) ? t.estado : 'sin-iniciar';
+  t.createdAt = new Date().toISOString();
+  tasks.push(t);
+  writeLeaderTasks(tasks);
+  res.json(t);
+});
+
+app.patch('/api/leader-tasks/:id', (req, res) => {
+  const tasks = readLeaderTasks();
+  const idx = tasks.findIndex(t => t.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  const u = req.body;
+  if (u.nombre !== undefined) tasks[idx].nombre = u.nombre;
+  if (u.descripcion !== undefined) tasks[idx].descripcion = u.descripcion;
+  if (u.estado !== undefined && ['sin-iniciar', 'en-progreso', 'completada'].includes(u.estado)) tasks[idx].estado = u.estado;
+  writeLeaderTasks(tasks);
+  res.json(tasks[idx]);
+});
+
+app.delete('/api/leader-tasks/:id', (req, res) => {
+  let tasks = readLeaderTasks();
+  const len = tasks.length;
+  tasks = tasks.filter(t => t.id !== req.params.id);
+  if (tasks.length === len) return res.status(404).json({ error: 'not found' });
+  writeLeaderTasks(tasks);
   res.json({ ok: true });
 });
 
