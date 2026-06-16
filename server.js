@@ -194,6 +194,7 @@ app.post('/api/projects', (req, res) => {
   p.descripcion = p.descripcion || '';
   p.fechaInicio = p.fechaInicio || '';
   p.fechaFin = p.fechaFin || '';
+  p.prioridad = ['alta', 'media', 'baja'].includes(p.prioridad) ? p.prioridad : 'media';
   projects.push(p);
   writeProjects(projects);
   res.json(p);
@@ -213,6 +214,7 @@ app.patch('/api/projects/:id', (req, res) => {
   if (updates.descripcion !== undefined) projects[idx].descripcion = updates.descripcion;
   if (updates.fechaInicio !== undefined) projects[idx].fechaInicio = updates.fechaInicio;
   if (updates.fechaFin !== undefined) projects[idx].fechaFin = updates.fechaFin;
+  if (updates.prioridad !== undefined && ['alta', 'media', 'baja'].includes(updates.prioridad)) projects[idx].prioridad = updates.prioridad;
   writeProjects(projects);
   res.json(projects[idx]);
 });

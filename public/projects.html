@@ -323,6 +323,12 @@
         <option value="avanzado">Avanzado (75-99%)</option>
         <option value="completado">Completado (100%)</option>
       </select>
+      <select id="filterPrioridad">
+        <option value="">Todas las prioridades</option>
+        <option value="alta">🔴 Alta</option>
+        <option value="media">🟠 Media</option>
+        <option value="baja">🟢 Baja</option>
+      </select>
     </div>
     <div class="actions">
       <button class="btn-export" id="btnExport">
@@ -359,6 +365,7 @@
           <th>Proyecto</th>
           <th>Líder</th>
           <th>Dependencia</th>
+          <th>Prioridad</th>
           <th>Progreso</th>
           <th>Horas</th>
           <th>Fechas</th>
@@ -399,6 +406,14 @@
     <div class="field">
       <label>Dependencia</label>
       <input type="text" id="inputDep" placeholder="Departamento o dependencia" />
+    </div>
+    <div class="field">
+      <label>Prioridad</label>
+      <select id="inputPrioridad">
+        <option value="alta">🔴 Alta</option>
+        <option value="media">🟠 Media</option>
+        <option value="baja">🟢 Baja</option>
+      </select>
     </div>
     <div class="field">
       <label>Descripción</label>
@@ -465,6 +480,10 @@
       <h4>Dependencia</h4>
       <p id="dDep"></p>
     </div>
+    <div class="detail-section">
+      <h4>Prioridad</h4>
+      <p id="dPrioridad"></p>
+    </div>
     <div class="detail-grid">
       <div class="detail-item">
         <label>Fecha de inicio</label>
@@ -507,6 +526,7 @@ const projectsTableBody = document.getElementById('projectsTableBody');
 const emptyState = document.getElementById('emptyState');
 const filterLider = document.getElementById('filterLider');
 const filterEstado = document.getElementById('filterEstado');
+const filterPrioridad = document.getElementById('filterPrioridad');
 const projectModal = document.getElementById('projectModal');
 const deleteModal = document.getElementById('deleteModal');
 const btnAdd = document.getElementById('btnAdd');
@@ -518,6 +538,7 @@ const modalTitle = document.getElementById('modalTitle');
 const inputName = document.getElementById('inputName');
 const inputLider = document.getElementById('inputLider');
 const inputDep = document.getElementById('inputDep');
+const inputPrioridad = document.getElementById('inputPrioridad');
 const inputDesc = document.getElementById('inputDesc');
 const inputFechaInicio = document.getElementById('inputFechaInicio');
 const inputFechaFin = document.getElementById('inputFechaFin');
@@ -533,6 +554,14 @@ function colorFor(p) {
   return              { color: '#f85149', label: 'Inicio', bg: 'rgba(248,81,73,0.12)' };
 }
 
+function prioInfo(v) {
+  switch (v) {
+    case 'alta': return { label: 'Alta',  color: '#f85149', bg: 'rgba(248,81,73,0.12)', dot: '🔴' };
+    case 'baja': return { label: 'Baja',  color: '#3fb950', bg: 'rgba(63,185,80,0.12)', dot: '🟢' };
+    default:     return { label: 'Media', color: '#d29922', bg: 'rgba(210,153,34,0.12)', dot: '🟠' };
+  }
+}
+
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 // ── Render table ──
@@ -540,6 +569,7 @@ function render() {
   // Apply filters
   filteredProjects = projects.filter(p => {
     if (filterLider.value && p.lider !== filterLider.value) return false;
+    if (filterPrioridad.value && (p.prioridad || 'media') !== filterPrioridad.value) return false;
     if (filterEstado.value) {
       const pct = p.pct;
       if (filterEstado.value === 'inicio' && (pct < 0 || pct >= 40)) return false;
@@ -574,6 +604,7 @@ function render() {
     if (p.fechaInicio) fechas.push(`Inicio: ${p.fechaInicio}`);
     if (p.fechaFin) fechas.push(`Fin: ${p.fechaFin}`);
     const fechasText = fechas.length ? fechas.join('<br>') : '—';
+    const prio = prioInfo(p.prioridad || 'media');
 
     row.innerHTML = `
       <td>
@@ -582,6 +613,7 @@ function render() {
       </td>
       <td>${esc(p.lider || '—')}</td>
       <td>${esc(p.dep || '—')}</td>
+      <td><span class="status-badge" style="background: ${prio.bg}; color: ${prio.color};">${prio.dot} ${prio.label}</span></td>
       <td class="progress-cell">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
           <span class="status-badge" style="background: ${c.bg}; color: ${c.color};">${c.label}</span>
@@ -649,6 +681,7 @@ function openAddModal() {
   inputName.value = '';
   inputLider.value = '';
   inputDep.value = '';
+  inputPrioridad.value = 'media';
   inputDesc.value = '';
   inputFechaInicio.value = '';
   inputFechaFin.value = '';
@@ -667,6 +700,7 @@ function openEditModal(id) {
   inputName.value = project.name || '';
   inputLider.value = project.lider || '';
   inputDep.value = project.dep || '';
+  inputPrioridad.value = project.prioridad || 'media';
   inputDesc.value = project.descripcion || '';
   inputFechaInicio.value = project.fechaInicio || '';
   inputFechaFin.value = project.fechaFin || '';
@@ -693,6 +727,7 @@ async function saveProject() {
     name,
     lider: inputLider.value,
     dep: inputDep.value,
+    prioridad: inputPrioridad.value,
     descripcion: inputDesc.value,
     fechaInicio: inputFechaInicio.value,
     fechaFin: inputFechaFin.value,
@@ -1044,6 +1079,7 @@ async function exportToExcel() {
       'Nombre': p.name || '',
       'Líder': p.lider || '',
       'Dependencia': p.dep || '',
+      'Prioridad': prioInfo(p.prioridad || 'media').label,
       'Descripción': p.descripcion || '',
       'Fecha Inicio': p.fechaInicio || '',
       'Fecha Fin': p.fechaFin || '',
@@ -1055,7 +1091,7 @@ async function exportToExcel() {
     const ws = XLSX.utils.json_to_sheet(exportData);
 
     ws['!cols'] = [
-      { wch: 30 }, { wch: 20 }, { wch: 25 }, { wch: 40 },
+      { wch: 30 }, { wch: 20 }, { wch: 25 }, { wch: 10 }, { wch: 40 },
       { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }
     ];
 
@@ -1095,6 +1131,7 @@ async function importFromExcel(file) {
           name: row['Nombre'] || '',
           lider: row['Líder'] || '',
           dep: row['Dependencia'] || '',
+          prioridad: ({ 'alta': 'alta', 'media': 'media', 'baja': 'baja' })[String(row['Prioridad'] || '').trim().toLowerCase()] || 'media',
           descripcion: row['Descripción'] || '',
           fechaInicio: row['Fecha Inicio'] || '',
           fechaFin: row['Fecha Fin'] || '',
@@ -1131,6 +1168,7 @@ btnCancelDelete.addEventListener('click', closeDeleteModal);
 btnConfirmDelete.addEventListener('click', confirmDelete);
 filterLider.addEventListener('change', render);
 filterEstado.addEventListener('change', render);
+filterPrioridad.addEventListener('change', render);
 
 document.getElementById('btnExport').addEventListener('click', exportToExcel);
 document.getElementById('btnImport').addEventListener('click', () => {
@@ -1175,6 +1213,9 @@ function openDetailModal(id) {
   const dep = document.getElementById('dDep');
   dep.textContent = p.dep || 'Sin dependencia asignada';
   dep.className = p.dep ? '' : 'empty-value';
+  const prio = prioInfo(p.prioridad || 'media');
+  document.getElementById('dPrioridad').innerHTML =
+    `<span class="status-chip" style="background:${prio.bg};color:${prio.color}">${prio.dot} ${prio.label}</span>`;
   const fi = document.getElementById('dFechaInicio');
   fi.textContent = p.fechaInicio || '—';
   fi.className = p.fechaInicio ? 'value' : 'value empty-value';

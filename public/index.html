@@ -396,6 +396,7 @@
     <div class="field"><label>Nombre del proyecto</label><input type="text" id="epName" placeholder="Nombre del proyecto"></div>
     <div class="field"><label>Líder</label><select id="epLider"><option value="">Seleccionar líder</option></select></div>
     <div class="field"><label>Dependencia</label><input type="text" id="epDep" placeholder="Departamento o dependencia"></div>
+    <div class="field"><label>Prioridad</label><select id="epPrioridad"><option value="alta">🔴 Alta</option><option value="media">🟠 Media</option><option value="baja">🟢 Baja</option></select></div>
     <div class="field"><label>Descripción</label><textarea id="epDesc" placeholder="Descripción del proyecto"></textarea></div>
     <div class="field"><label>Fecha de inicio</label><input type="date" id="epFechaInicio"></div>
     <div class="field"><label>Fecha de finalización</label><input type="date" id="epFechaFin"></div>
@@ -433,6 +434,10 @@
     <div class="detail-section">
       <h4>Dependencia</h4>
       <p id="dDep"></p>
+    </div>
+    <div class="detail-section">
+      <h4>Prioridad</h4>
+      <p id="dPrioridad"></p>
     </div>
     <div class="detail-grid">
       <div class="detail-item">
@@ -514,6 +519,14 @@ function colorFor(p) {
   if (p >= 75)  return { arc: '#58a6ff', text: '#58a6ff', tag: 'rgba(88,166,255,0.12)', label: 'Avanzado' };
   if (p >= 40)  return { arc: '#d29922', text: '#d29922', tag: 'rgba(210,153,34,0.12)', label: 'En progreso' };
   return              { arc: '#f85149', text: '#f85149', tag: 'rgba(248,81,73,0.12)', label: 'Inicio' };
+}
+
+function prioInfo(v) {
+  switch (v) {
+    case 'alta': return { label: 'Alta',  color: '#f85149', bg: 'rgba(248,81,73,0.12)', dot: '🔴' };
+    case 'baja': return { label: 'Baja',  color: '#3fb950', bg: 'rgba(63,185,80,0.12)', dot: '🟢' };
+    default:     return { label: 'Media', color: '#d29922', bg: 'rgba(210,153,34,0.12)', dot: '🟠' };
+  }
 }
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -614,6 +627,7 @@ function render() {
       <div class="name">${esc(p.name)}</div>
       <div class="pct-label" style="color:${c.text}">${Math.round(p.pct)}%</div>
       <div class="status-tag" style="background:${c.tag}; color:${c.text}">${c.label}</div>
+      ${(() => { const pr = prioInfo(p.prioridad || 'media'); return `<div class="status-tag" style="background:${pr.bg}; color:${pr.color}; margin-top:0.35rem;">${pr.dot} ${pr.label}</div>`; })()}
       ${p.lider ? `<div class="meta"><div class="lider-badge">${esc(p.lider)}</div></div>` : ''}
       ${p.hours ? `<div class="meta"><span class="hours-val">${p.hours.toLocaleString()}h</span> ahorradas</div>` : ''}
       ${avatarHTML}
@@ -984,6 +998,7 @@ async function openEditProjectModal(id) {
   } catch {}
   document.getElementById('epName').value = p.name || '';
   document.getElementById('epDep').value = p.dep || '';
+  document.getElementById('epPrioridad').value = p.prioridad || 'media';
   document.getElementById('epDesc').value = p.descripcion || '';
   document.getElementById('epFechaInicio').value = p.fechaInicio || '';
   document.getElementById('epFechaFin').value = p.fechaFin || '';
@@ -1005,6 +1020,7 @@ async function saveEditProject() {
     name,
     lider: document.getElementById('epLider').value,
     dep: document.getElementById('epDep').value,
+    prioridad: document.getElementById('epPrioridad').value,
     descripcion: document.getElementById('epDesc').value,
     fechaInicio: document.getElementById('epFechaInicio').value,
     fechaFin: document.getElementById('epFechaFin').value,
@@ -1057,6 +1073,9 @@ function openDetailModal(id) {
   const dep = document.getElementById('dDep');
   dep.textContent = p.dep || 'Sin dependencia asignada';
   dep.className = p.dep ? '' : 'empty-value';
+  const prio = prioInfo(p.prioridad || 'media');
+  document.getElementById('dPrioridad').innerHTML =
+    `<span class="project-status" style="background:${prio.bg};color:${prio.color}">${prio.dot} ${prio.label}</span>`;
   document.getElementById('dFechaInicio').textContent = p.fechaInicio || '—';
   document.getElementById('dFechaFin').textContent = p.fechaFin || '—';
   document.getElementById('dEditBtnIndex').onclick = () => {
