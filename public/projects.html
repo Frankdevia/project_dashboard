@@ -5,6 +5,15 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gestión de Proyectos - Project Dashboard</title>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -34,6 +43,41 @@
     --font-display: 'Space Grotesk', sans-serif;
     --font-body: 'Inter', sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --track: rgba(255,255,255,0.07);
+    --tint: rgba(255,255,255,0.03);
+    --prio-alta-bg: rgba(240,82,77,0.14);
+    --prio-media-bg: rgba(224,160,48,0.14);
+    --prio-baja-bg: rgba(59,167,118,0.14);
+    --st-done: #3BA776; --st-done-bg: rgba(59,167,118,0.14);
+    --st-adv:  #5BC6BE; --st-adv-bg:  rgba(91,198,190,0.14);
+    --st-prog: #93A1B0; --st-prog-bg: rgba(147,161,176,0.12);
+    --st-init: #6B7686; --st-init-bg: rgba(120,135,155,0.10);
+  }
+  :root[data-theme="light"] {
+    --bg: #EEF1F4;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #F4F7FA;
+    --bg-input: #FFFFFF;
+    --border: rgba(20,45,70,0.13);
+    --border-focus: rgba(20,45,70,0.32);
+    --text: #16222E;
+    --text-muted: #52626F;
+    --text-dim: #8593A0;
+    --accent: #128C84;
+    --accent-ink: #FFFFFF;
+    --red: #D23A34;
+    --amber: #9C6B0E;
+    --blue: #128C84;
+    --green: #1C8A5B;
+    --track: rgba(20,45,70,0.10);
+    --tint: rgba(20,45,70,0.035);
+    --prio-alta: #D23A34;  --prio-alta-bg: rgba(210,58,52,0.12);
+    --prio-media: #9C6B0E; --prio-media-bg: rgba(156,107,14,0.13);
+    --prio-baja: #1C8A5B;  --prio-baja-bg: rgba(28,138,91,0.13);
+    --st-done: #1C8A5B; --st-done-bg: rgba(28,138,91,0.13);
+    --st-adv:  #128C84; --st-adv-bg:  rgba(18,140,132,0.13);
+    --st-prog: #52626F; --st-prog-bg: rgba(82,98,111,0.12);
+    --st-init: #8593A0; --st-init-bg: rgba(133,147,160,0.12);
   }
 
   body {
@@ -85,7 +129,7 @@
 
   .projects-table-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .projects-table { width: 100%; border-collapse: collapse; }
-  .projects-table thead { background: rgba(255,255,255,0.02); }
+  .projects-table thead { background: var(--tint); }
   .projects-table th { padding: 1rem; text-align: left; font-family: var(--font-display); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
   .projects-table td { padding: 1rem; border-bottom: 1px solid var(--border); color: var(--text); font-size: 0.9rem; }
   .projects-table tbody tr { transition: background 0.15s; }
@@ -93,12 +137,12 @@
   .projects-table tbody tr:last-child td { border-bottom: none; }
   .projects-table .project-name { font-weight: 600; color: var(--text); }
   .projects-table .progress-cell { min-width: 120px; }
-  .projects-table .progress-bar-mini { width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; margin-top: 0.25rem; }
+  .projects-table .progress-bar-mini { width: 100%; height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; margin-top: 0.25rem; }
   .projects-table .progress-fill-mini { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
   .projects-table .status-badge { display: inline-block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.2rem 0.5rem; border-radius: 4px; }
   .projects-table .actions-cell { text-align: right; }
   .projects-table .actions-cell button { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.9rem; padding: 4px 6px; border-radius: 6px; transition: color 0.15s, background 0.15s; }
-  .projects-table .actions-cell button:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+  .projects-table .actions-cell button:hover { color: var(--text); background: var(--track); }
   .projects-table .actions-cell button.btn-delete:hover { color: var(--red); }
 
   /* ── Read-only mode ── */
@@ -178,7 +222,7 @@
   .detail-section p { color: var(--text); font-size: 0.95rem; line-height: 1.6; }
   .detail-section .empty-value { color: var(--text-dim); font-style: italic; }
   .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
-  .detail-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem; }
+  .detail-item { background: var(--tint); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem; }
   .detail-item label { display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.3rem; }
   .detail-item .value { font-size: 1rem; color: var(--text); font-weight: 500; }
   .detail-item .value.highlight { font-weight: 700; font-size: 1.2rem; font-family: var(--font-display); }
@@ -275,6 +319,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
       Líder
     </a>
+    <button class="nav-btn" id="btnTheme" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"></button>
     <button class="nav-btn" id="btnLogin" onclick="openLoginModal()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
       Iniciar sesión
@@ -565,17 +610,17 @@ const deleteProjectName = document.getElementById('deleteProjectName');
 
 // ── Color helpers ──
 function colorFor(p) {
-  if (p >= 100) return { color: '#3BA776', label: 'Completado', bg: 'rgba(59,167,118,0.14)' };
-  if (p >= 75)  return { color: '#5BC6BE', label: 'Avanzado',   bg: 'rgba(91,198,190,0.14)' };
-  if (p >= 40)  return { color: '#93A1B0', label: 'En progreso',bg: 'rgba(147,161,176,0.12)' };
-  return              { color: '#6B7686', label: 'Inicio',      bg: 'rgba(120,135,155,0.10)' };
+  if (p >= 100) return { color: 'var(--st-done)', label: 'Completado', bg: 'var(--st-done-bg)' };
+  if (p >= 75)  return { color: 'var(--st-adv)',  label: 'Avanzado',   bg: 'var(--st-adv-bg)' };
+  if (p >= 40)  return { color: 'var(--st-prog)', label: 'En progreso',bg: 'var(--st-prog-bg)' };
+  return              { color: 'var(--st-init)', label: 'Inicio',      bg: 'var(--st-init-bg)' };
 }
 
 function prioInfo(v) {
   switch (v) {
-    case 'alta': return { label: 'Alta',  color: '#F0524D', bg: 'rgba(240,82,77,0.14)', dot: '🔴' };
-    case 'baja': return { label: 'Baja',  color: '#3BA776', bg: 'rgba(59,167,118,0.14)', dot: '🟢' };
-    default:     return { label: 'Media', color: '#E0A030', bg: 'rgba(224,160,48,0.14)', dot: '🟠' };
+    case 'alta': return { label: 'Alta',  color: 'var(--prio-alta)', bg: 'var(--prio-alta-bg)', dot: '🔴' };
+    case 'baja': return { label: 'Baja',  color: 'var(--prio-baja)', bg: 'var(--prio-baja-bg)', dot: '🟢' };
+    default:     return { label: 'Media', color: 'var(--prio-media)', bg: 'var(--prio-media-bg)', dot: '🟠' };
   }
 }
 
@@ -1259,6 +1304,24 @@ detailModal.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && detailModal.classList.contains('open')) closeDetailModal();
 });
+
+// ── Theme toggle ──
+function themeIcon(t) {
+  return t === 'light'
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> Oscuro'
+    : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg> Claro';
+}
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('theme', t); } catch (e) {}
+  const b = document.getElementById('btnTheme');
+  if (b) b.innerHTML = themeIcon(t);
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  applyTheme(cur === 'light' ? 'dark' : 'light');
+}
+applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
 
 // ── Initialize ──
 loadLeaders();

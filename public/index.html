@@ -5,6 +5,15 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Project Dashboard</title>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -34,6 +43,41 @@
     --font-display: 'Space Grotesk', sans-serif;
     --font-body: 'Inter', sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --track: rgba(255,255,255,0.07);
+    --tint: rgba(255,255,255,0.03);
+    --prio-alta-bg: rgba(240,82,77,0.14);
+    --prio-media-bg: rgba(224,160,48,0.14);
+    --prio-baja-bg: rgba(59,167,118,0.14);
+    --st-done: #3BA776; --st-done-bg: rgba(59,167,118,0.14);
+    --st-adv:  #5BC6BE; --st-adv-bg:  rgba(91,198,190,0.14);
+    --st-prog: #93A1B0; --st-prog-bg: rgba(147,161,176,0.12);
+    --st-init: #6B7686; --st-init-bg: rgba(120,135,155,0.10);
+  }
+  :root[data-theme="light"] {
+    --bg: #EEF1F4;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #F4F7FA;
+    --bg-input: #FFFFFF;
+    --border: rgba(20,45,70,0.13);
+    --border-focus: rgba(20,45,70,0.32);
+    --text: #16222E;
+    --text-muted: #52626F;
+    --text-dim: #8593A0;
+    --accent: #128C84;
+    --accent-ink: #FFFFFF;
+    --red: #D23A34;
+    --amber: #9C6B0E;
+    --blue: #128C84;
+    --green: #1C8A5B;
+    --track: rgba(20,45,70,0.10);
+    --tint: rgba(20,45,70,0.035);
+    --prio-alta: #D23A34;  --prio-alta-bg: rgba(210,58,52,0.12);
+    --prio-media: #9C6B0E; --prio-media-bg: rgba(156,107,14,0.13);
+    --prio-baja: #1C8A5B;  --prio-baja-bg: rgba(28,138,91,0.13);
+    --st-done: #1C8A5B; --st-done-bg: rgba(28,138,91,0.13);
+    --st-adv:  #128C84; --st-adv-bg:  rgba(18,140,132,0.13);
+    --st-prog: #52626F; --st-prog-bg: rgba(82,98,111,0.12);
+    --st-init: #8593A0; --st-init-bg: rgba(133,147,160,0.12);
   }
 
   body {
@@ -238,7 +282,7 @@
   .detail-section p { color: var(--text); font-size: 0.95rem; line-height: 1.6; margin: 0; }
   .detail-section .empty-value { color: var(--text-dim); font-style: italic; }
   .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
-  .detail-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem; }
+  .detail-item { background: var(--tint); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem; }
   .detail-item label { display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.3rem; }
   .detail-item .value { font-size: 1rem; color: var(--text); font-weight: 500; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   .detail-item .value.highlight { color: var(--green); font-weight: 600; font-size: 1.2rem; }
@@ -305,7 +349,7 @@
   .guardian-date { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); margin-top: 0.35rem; }
   .guardian-next { display: flex; align-items: center; gap: 0.5rem; position: relative; z-index: 1; flex-wrap: wrap; }
   .guardian-next .lbl { font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-dim); margin-right: 0.1rem; }
-  .nextchip { display: flex; align-items: center; gap: 0.45rem; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.65rem 0.25rem 0.3rem; font-size: 0.72rem; color: var(--text-muted); }
+  .nextchip { display: flex; align-items: center; gap: 0.45rem; background: var(--tint); border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.65rem 0.25rem 0.3rem; font-size: 0.72rem; color: var(--text-muted); }
   .nextchip b { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(91,198,190,0.12); color: var(--accent); font-family: var(--font-display); font-weight: 700; font-size: 0.6rem; }
   .nextchip .d { font-family: var(--font-mono); color: var(--text-dim); }
 
@@ -317,10 +361,10 @@
   .board-avg small { display: block; font-family: var(--font-mono); font-size: 0.64rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-dim); margin-top: 0.45rem; }
   .board-mini { text-align: right; font-size: 0.74rem; color: var(--text-muted); line-height: 1.55; }
   .board-mini b { font-family: var(--font-mono); color: var(--text); font-weight: 600; }
-  .board-bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+  .board-bar { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; }
   .board-bar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.5s cubic-bezier(0.22,1,0.36,1); }
   .prio-break { display: flex; gap: 0.5rem; }
-  .prio-cell { flex: 1; background: rgba(255,255,255,0.025); border: 1px solid var(--border); border-left: 3px solid var(--text-dim); border-radius: var(--radius-sm); padding: 0.55rem 0.65rem; display: flex; flex-direction: column; gap: 0.15rem; }
+  .prio-cell { flex: 1; background: var(--tint); border: 1px solid var(--border); border-left: 3px solid var(--text-dim); border-radius: var(--radius-sm); padding: 0.55rem 0.65rem; display: flex; flex-direction: column; gap: 0.15rem; }
   .prio-cell .n { font-family: var(--font-mono); font-weight: 600; font-size: 1.25rem; color: var(--text); line-height: 1; }
   .prio-cell .k { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
 
@@ -342,7 +386,7 @@
   .pcard-sub .lead { color: var(--accent); font-weight: 500; }
   .pcard-sub .sep { color: var(--text-dim); }
   .pcard-sub .dep { color: var(--text-dim); }
-  .pcard-bar { height: 5px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; margin-top: 0.9rem; }
+  .pcard-bar { height: 5px; border-radius: 999px; background: var(--track); overflow: hidden; margin-top: 0.9rem; }
   .pcard-bar > i { display: block; height: 100%; border-radius: 999px; transition: width 0.5s cubic-bezier(0.22,1,0.36,1); }
   .pcard-prog { display: flex; align-items: baseline; justify-content: space-between; margin-top: 0.5rem; }
   .pcard-status { font-size: 0.72rem; color: var(--text-muted); }
@@ -432,6 +476,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
       Líder
     </a>
+    <button class="nav-btn" id="btnTheme" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"></button>
     <button class="nav-btn" id="btnLogin" onclick="openLoginModal()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
       Iniciar sesión
@@ -611,17 +656,17 @@ function initials(name) {
 
 // ── Color helpers ──
 function colorFor(p) {
-  if (p >= 100) return { arc: '#3BA776', text: '#3BA776', tag: 'rgba(59,167,118,0.14)', label: 'Completado' };
-  if (p >= 75)  return { arc: '#5BC6BE', text: '#5BC6BE', tag: 'rgba(91,198,190,0.14)', label: 'Avanzado' };
-  if (p >= 40)  return { arc: '#93A1B0', text: '#93A1B0', tag: 'rgba(147,161,176,0.12)', label: 'En progreso' };
-  return              { arc: '#6B7686', text: '#6B7686', tag: 'rgba(120,135,155,0.10)', label: 'Inicio' };
+  if (p >= 100) return { arc: 'var(--st-done)', text: 'var(--st-done)', tag: 'var(--st-done-bg)', label: 'Completado' };
+  if (p >= 75)  return { arc: 'var(--st-adv)',  text: 'var(--st-adv)',  tag: 'var(--st-adv-bg)',  label: 'Avanzado' };
+  if (p >= 40)  return { arc: 'var(--st-prog)', text: 'var(--st-prog)', tag: 'var(--st-prog-bg)', label: 'En progreso' };
+  return              { arc: 'var(--st-init)', text: 'var(--st-init)', tag: 'var(--st-init-bg)', label: 'Inicio' };
 }
 
 function prioInfo(v) {
   switch (v) {
-    case 'alta': return { label: 'Alta',  color: '#F0524D', bg: 'rgba(240,82,77,0.14)', dot: '🔴' };
-    case 'baja': return { label: 'Baja',  color: '#3BA776', bg: 'rgba(59,167,118,0.14)', dot: '🟢' };
-    default:     return { label: 'Media', color: '#E0A030', bg: 'rgba(224,160,48,0.14)', dot: '🟠' };
+    case 'alta': return { label: 'Alta',  color: 'var(--prio-alta)', bg: 'var(--prio-alta-bg)', dot: '🔴' };
+    case 'baja': return { label: 'Baja',  color: 'var(--prio-baja)', bg: 'var(--prio-baja-bg)', dot: '🟢' };
+    default:     return { label: 'Media', color: 'var(--prio-media)', bg: 'var(--prio-media-bg)', dot: '🟠' };
   }
 }
 
@@ -1105,6 +1150,24 @@ function loadGuardianToday() {
     : '<span class="nextchip">—</span>');
 }
 
+// ── Theme toggle ──
+function themeIcon(t) {
+  return t === 'light'
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> Oscuro'
+    : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg> Claro';
+}
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('theme', t); } catch (e) {}
+  const b = document.getElementById('btnTheme');
+  if (b) b.innerHTML = themeIcon(t);
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  applyTheme(cur === 'light' ? 'dark' : 'light');
+}
+applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+
 loadLeaders();
 loadProjects();
 loadGuardianToday();
@@ -1180,10 +1243,10 @@ document.getElementById('editProjectModal').addEventListener('click', e => {
 // ── Detail Modal ──
 let currentDetailProjectId = null;
 function colorForDetail(p) {
-  if (p >= 100) return { color: '#3BA776', label: 'Completado', bg: 'rgba(59,167,118,0.14)' };
-  if (p >= 75)  return { color: '#5BC6BE', label: 'Avanzado',   bg: 'rgba(91,198,190,0.14)' };
-  if (p >= 40)  return { color: '#93A1B0', label: 'En progreso',bg: 'rgba(147,161,176,0.12)' };
-  return              { color: '#6B7686', label: 'Inicio',      bg: 'rgba(120,135,155,0.10)' };
+  if (p >= 100) return { color: 'var(--st-done)', label: 'Completado', bg: 'var(--st-done-bg)' };
+  if (p >= 75)  return { color: 'var(--st-adv)',  label: 'Avanzado',   bg: 'var(--st-adv-bg)' };
+  if (p >= 40)  return { color: 'var(--st-prog)', label: 'En progreso',bg: 'var(--st-prog-bg)' };
+  return              { color: 'var(--st-init)', label: 'Inicio',      bg: 'var(--st-init-bg)' };
 }
 const detailModal = document.getElementById('detailModal');
 
