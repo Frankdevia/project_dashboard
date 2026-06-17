@@ -5,6 +5,15 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tareas Rutinarias - Project Dashboard</title>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -32,6 +41,29 @@
     --radius-sm: 10px;
     --font-display: 'Outfit', sans-serif;
     --font-body: 'DM Sans', sans-serif;
+    --track: rgba(255,255,255,0.07);
+    --tint: rgba(255,255,255,0.03);
+  }
+
+  :root[data-theme="light"] {
+    --bg: #EEF1F4;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #F4F7FA;
+    --bg-input: #FFFFFF;
+    --border: rgba(20,45,70,0.13);
+    --border-focus: rgba(20,45,70,0.32);
+    --text: #16222E;
+    --text-muted: #52626F;
+    --text-dim: #8593A0;
+    --accent: #1F6FEB;
+    --red: #D23A34;
+    --amber: #9C6B0E;
+    --blue: #1F6FEB;
+    --green: #1C8A5B;
+    --purple: #8957E5;
+    --orange: #C2410C;
+    --track: rgba(20,45,70,0.10);
+    --tint: rgba(20,45,70,0.035);
   }
 
   body {
@@ -404,6 +436,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
       Líder
     </a>
+    <button class="nav-btn" id="btnTheme" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"></button>
     <button class="nav-btn" id="btnLogin" onclick="openLoginModal()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
       Iniciar sesión
@@ -593,11 +626,11 @@
     <div class="modal-body">
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.25rem" id="tdBadges"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.25rem">
-        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem">
+        <div style="background:var(--tint);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem">
           <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin-bottom:0.3rem">Encargado</div>
           <div id="tdEnc" style="font-size:0.95rem;font-weight:500"></div>
         </div>
-        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem">
+        <div style="background:var(--tint);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem">
           <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin-bottom:0.3rem">Dificultad</div>
           <div id="tdEP"></div>
         </div>
@@ -1010,6 +1043,23 @@ async function doLogout() {
 }
 document.getElementById('loginModal').addEventListener('click', e => { if (e.target === document.getElementById('loginModal')) closeLoginModal(); });
 document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+// ── Theme toggle ──
+function themeIcon(t) {
+  return t === 'light'
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> Oscuro'
+    : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg> Claro';
+}
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('theme', t); } catch (e) {}
+  var b = document.getElementById('btnTheme');
+  if (b) b.innerHTML = themeIcon(t);
+}
+function toggleTheme() {
+  var cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  applyTheme(cur === 'light' ? 'dark' : 'light');
+}
+applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
 checkSession();
 </script>
 </body>
