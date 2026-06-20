@@ -376,9 +376,11 @@
   .group-head .gcount { font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-dim); }
   .group-head .gline { flex: 1; height: 1px; background: var(--border); }
 
-  .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 0.85rem; }
-  .pcard { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--rail, var(--text-dim)); border-radius: var(--radius); padding: 1rem 1.1rem; cursor: pointer; transition: background 0.18s, border-color 0.18s, transform 0.18s; animation: cardIn 0.3s ease-out both; }
+  .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.85rem; }
+  .pcard { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--rail, var(--text-dim)); border-radius: var(--radius); padding: 1rem 1.1rem; cursor: pointer; transition: background 0.18s, border-color 0.18s, transform 0.18s; animation: cardIn 0.3s ease-out both; display: flex; align-items: center; gap: 1rem; }
   .pcard:hover { background: var(--bg-card-hover); border-color: var(--border-focus); border-left-color: var(--rail); transform: translateY(-2px); }
+  .pcard-donut-lg { flex-shrink: 0; line-height: 0; display: flex; align-items: center; justify-content: center; }
+  .pcard-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .pcard-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; }
   .pcard-name { font-family: var(--font-display); font-weight: 600; font-size: 1rem; line-height: 1.25; color: var(--text); word-break: break-word; }
   .prio-flag { flex-shrink: 0; font-family: var(--font-mono); font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.22rem 0.5rem; border-radius: 999px; white-space: nowrap; }
@@ -389,10 +391,8 @@
   .pcard-bar { height: 5px; border-radius: 999px; background: var(--track); overflow: hidden; margin-top: 0.9rem; }
   .pcard-bar > i { display: block; height: 100%; border-radius: 999px; transition: width 0.5s cubic-bezier(0.22,1,0.36,1); }
   .pcard-prog { display: flex; align-items: baseline; justify-content: space-between; margin-top: 0.5rem; }
-  .pcard-status { font-size: 0.72rem; color: var(--text-muted); }
+  .pcard-status { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.6rem; }
   .pcard-pct { font-family: var(--font-mono); font-weight: 600; font-size: 0.95rem; }
-  .pcard-chartrow { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 0.85rem; }
-  .pcard-donut { flex-shrink: 0; line-height: 0; }
   .donut .dtrack { stroke: var(--track); }
   .donut .dprog { transition: stroke-dasharray 0.6s cubic-bezier(0.22,1,0.36,1); }
   .donut .dlabel { fill: var(--text); font-family: var(--font-mono); font-weight: 600; font-size: 10px; }
@@ -721,12 +721,12 @@ function gaugeSVG(pct) {
 }
 
 // ── Compact dashboard donut showing completion % ──
-function donutSVG(pct) {
+function donutSVG(pct, size = 46) {
   const c = colorFor(pct);
   const v = Math.max(0, Math.min(100, Math.round(pct)));
   const r = 17, circ = 2 * Math.PI * r;
   const prog = circ * v / 100;
-  return `<svg class="donut" viewBox="0 0 44 44" width="46" height="46" role="img" aria-label="${v}% completado">
+  return `<svg class="donut" viewBox="0 0 44 44" width="${size}" height="${size}" role="img" aria-label="${v}% completado">
     <circle class="dtrack" cx="22" cy="22" r="${r}" fill="none" stroke-width="4" stroke-dasharray="1.6 3" stroke-linecap="round"/>
     <circle class="dprog" cx="22" cy="22" r="${r}" fill="none" stroke-width="4" stroke-linecap="round"
       stroke-dasharray="${prog.toFixed(2)} ${(circ - prog).toFixed(2)}" transform="rotate(-90 22 22)" style="stroke:${c.text}"/>
@@ -757,18 +757,18 @@ function buildCard(p) {
   const leadLine = p.lider ? `<span class="lead">${esc(p.lider)}</span>${dep}` : (p.dep ? `<span class="dep">${esc(p.dep)}</span>` : '');
 
   card.innerHTML = `
-    <div class="pcard-head">
-      <div class="pcard-name">${esc(p.name)}</div>
-      <span class="prio-flag" style="background:${pr.bg};color:${pr.color}">${pr.label}</span>
-    </div>
-    ${leadLine ? `<div class="pcard-sub">${leadLine}</div>` : ''}
-    <div class="pcard-chartrow">
+    <div class="pcard-donut-lg">${donutSVG(p.pct, 92)}</div>
+    <div class="pcard-body">
+      <div class="pcard-head">
+        <div class="pcard-name">${esc(p.name)}</div>
+        <span class="prio-flag" style="background:${pr.bg};color:${pr.color}">${pr.label}</span>
+      </div>
+      ${leadLine ? `<div class="pcard-sub">${leadLine}</div>` : ''}
       <span class="pcard-status">${c.label}</span>
-      <span class="pcard-donut">${donutSVG(p.pct)}</span>
-    </div>
-    <div class="pcard-foot">
-      <span>${p.hours ? `<span class="hrs">${p.hours.toLocaleString()}h</span> ahorradas` : ''}</span>
-      ${avatar}
+      <div class="pcard-foot">
+        <span>${p.hours ? `<span class="hrs">${p.hours.toLocaleString()}h</span> ahorradas` : ''}</span>
+        ${avatar}
+      </div>
     </div>
   `;
   return card;
