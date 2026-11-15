@@ -127,21 +127,42 @@
   .eyebrow { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-dim); }
   .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
   .panel-head .hint { font-size: 0.74rem; color: var(--text-muted); }
+  .section-title { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; color: var(--text); margin: 0.6rem 0 -0.2rem; display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  .section-title small { font-family: var(--font-body); font-weight: 400; font-size: 0.78rem; color: var(--text-muted); }
 
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.85rem; }
+  /* Range picker */
+  .range { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; padding: 0.9rem 1.1rem; }
+  .presets { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .preset { background: var(--tint); border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-family: var(--font-body); font-size: 0.78rem; padding: 0.35rem 0.8rem; cursor: pointer; transition: all 0.15s; }
+  .preset:hover { color: var(--text); border-color: var(--border-focus); }
+  .preset.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .range-sep { flex: 1; }
+  .range label { font-size: 0.74rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; }
+  .range input[type=date] { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font-mono); font-size: 0.8rem; padding: 0.35rem 0.5rem; color-scheme: dark; }
+  :root[data-theme="light"] .range input[type=date] { color-scheme: light; }
+  .btn-apply { background: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); color: var(--accent-ink); font-family: var(--font-body); font-size: 0.8rem; font-weight: 600; padding: 0.4rem 0.95rem; cursor: pointer; }
+  .range-msg { font-size: 0.72rem; color: var(--amber); width: 100%; display: none; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.85rem; }
   .kpi { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--rail, var(--text-dim)); border-radius: var(--radius); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.3rem; }
-  .kpi-val { font-family: var(--font-display); font-weight: 700; font-size: 2.2rem; letter-spacing: -0.03em; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+  .kpi-val { font-family: var(--font-display); font-weight: 700; font-size: 2.1rem; letter-spacing: -0.03em; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+  .kpi-val .u { font-size: 1rem; font-weight: 500; color: var(--text-muted); margin-left: 0.15rem; }
   .kpi-sub { font-size: 0.74rem; color: var(--text-muted); }
-
-  .grid2 { display: grid; grid-template-columns: 1.25fr 1fr; gap: 1rem; }
-
-  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.6rem; }
-  .metric { background: var(--tint); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.2rem; }
-  .metric-label { font-size: 0.72rem; color: var(--text-muted); }
-  .metric-val { font-family: var(--font-mono); font-weight: 600; font-size: 1.25rem; color: var(--text); font-variant-numeric: tabular-nums; }
   .delta { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); }
   .delta.good { color: var(--green); }
   .delta.bad { color: var(--red); }
+
+  .grid2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1rem; }
+
+  /* Per-agent time bars */
+  .tbars { display: grid; grid-template-columns: minmax(140px, 190px) 1fr 1fr; gap: 0.55rem 1rem; align-items: center; }
+  .tbars .h { font-family: var(--font-mono); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); padding-bottom: 0.2rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.4rem; }
+  .tbars .h i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .tbar { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+  .tbar-track { flex: 1; height: 16px; background: var(--track); border-radius: 4px; overflow: hidden; }
+  .tbar-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+  .tbar-val { width: 58px; text-align: right; font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .tbar-val.na { color: var(--text-dim); font-weight: 400; }
 
   .age-row { display: grid; grid-template-columns: 78px 1fr 34px; align-items: center; gap: 0.7rem; margin-bottom: 0.6rem; }
   .age-label { font-size: 0.78rem; color: var(--text-muted); text-align: right; font-family: var(--font-mono); }
@@ -157,22 +178,30 @@
   tr:last-child td { border-bottom: none; }
   th.num, td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   td.num.zero { color: var(--text-dim); }
-  .who { display: flex; align-items: center; gap: 0.6rem; }
+  .who { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+  .who-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.84rem; color: var(--text); }
   .avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 0.7rem; color: var(--accent); background: var(--tint); border: 1px solid var(--border); overflow: hidden; }
   .avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .load-bar { display: inline-block; vertical-align: middle; height: 6px; border-radius: 999px; background: var(--amber); margin-left: 0.5rem; }
 
+  .notes { font-size: 0.72rem; color: var(--text-dim); line-height: 1.6; }
+  .notes .warn { color: var(--amber); }
   .state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
   .state code { font-family: var(--font-mono); background: var(--tint); border: 1px solid var(--border); border-radius: 6px; padding: 0.1rem 0.4rem; color: var(--text); }
   .stale { color: var(--amber); }
   .refresh-btn { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-family: var(--font-body); font-size: 0.78rem; padding: 0.35rem 0.8rem; cursor: pointer; }
   .refresh-btn:hover { color: var(--text); border-color: var(--border-focus); }
+  .loading { opacity: 0.55; pointer-events: none; transition: opacity 0.2s; }
 
   @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
   @media (max-width: 600px) {
     .wrap { padding-left: 1rem; padding-right: 1rem; }
     .header { padding-left: 1rem; }
-    .kpi-val { font-size: 1.8rem; }
+    .kpi-val { font-size: 1.7rem; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .tbars { grid-template-columns: 1fr; gap: 0.3rem; }
+    .tbars .h.hname { display: none; }
+    .tbars .who { margin-top: 0.6rem; }
+    .range-sep { display: none; }
   }
 </style>
 </head>
@@ -224,10 +253,27 @@
   </div>
 </div>
 
-<div class="wrap" id="root"><div class="state">Consultando FreeScout…</div></div>
+<div class="wrap">
+  <div class="panel range" id="rangeBar">
+    <div class="presets" id="presets">
+      <button class="preset" data-p="7">7 días</button>
+      <button class="preset" data-p="30">30 días</button>
+      <button class="preset" data-p="90">90 días</button>
+      <button class="preset" data-p="mes">Este mes</button>
+      <button class="preset" data-p="mesant">Mes anterior</button>
+    </div>
+    <span class="range-sep"></span>
+    <label>Desde <input type="date" id="fDesde"></label>
+    <label>Hasta <input type="date" id="fHasta"></label>
+    <button class="btn-apply" id="btnApply">Aplicar</button>
+    <div class="range-msg" id="rangeMsg"></div>
+  </div>
+  <div id="root" style="display:flex;flex-direction:column;gap:1rem;"><div class="panel state">Consultando FreeScout…</div></div>
+</div>
 
 <script>
 let leaders = [];
+const MAX_DAYS = 92;
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
 function normName(s) {
@@ -240,7 +286,7 @@ function avatar(name) {
   return `<span class="avatar">${l && l.photo ? `<img src="${esc(l.photo)}" alt="">` : esc(initials(name))}</span>`;
 }
 
-// Minutes → compact human duration
+// ── Formatting ──
 function fmtMin(m) {
   if (m == null) return '—';
   if (m < 60) return `${Math.round(m)} min`;
@@ -249,31 +295,90 @@ function fmtMin(m) {
   return `${(h / 24).toFixed(1).replace('.0', '')} d`;
 }
 function fmtHours(h) { return h == null ? '—' : fmtMin(h * 60); }
+// Big-number variant: value + unit separately
+function bigDur(h) {
+  if (h == null) return '—';
+  const s = fmtHours(h); const i = s.lastIndexOf(' ');
+  return `${esc(s.slice(0, i))}<span class="u">${esc(s.slice(i + 1))}</span>`;
+}
 function fmtNum(n) { return n == null ? '—' : Number(n).toLocaleString('es-CO'); }
 function fmtDay(iso) {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  return new Date(y, m - 1, d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-
-// Delta vs previous period. lowerIsBetter flips the good/bad colour.
 function delta(cur, prev, { lowerIsBetter = false, neutral = false } = {}) {
   if (cur == null || prev == null || prev === 0) return '<span class="delta">sin comparación</span>';
   const pct = ((cur - prev) / prev) * 100;
-  if (Math.abs(pct) < 0.5) return '<span class="delta">= sin cambio</span>';
+  if (Math.abs(pct) < 0.5) return '<span class="delta">= igual que el periodo anterior</span>';
   const up = pct > 0;
   const cls = neutral ? '' : ((up !== lowerIsBetter) ? 'good' : 'bad');
-  return `<span class="delta ${cls}">${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}% vs semana anterior</span>`;
+  return `<span class="delta ${cls}">${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}% vs periodo anterior</span>`;
 }
 
+// ── Date range ──
+function isoLocal(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function addDays(iso, n) { const [y, m, d] = iso.split('-').map(Number); return isoLocal(new Date(y, m - 1, d + n)); }
+function daysBetween(a, b) { const p = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); }; return Math.round((p(b) - p(a)) / 86400000); }
+function presetRange(p) {
+  const today = isoLocal(new Date());
+  const yest = addDays(today, -1);
+  if (p === 'mes') return { desde: today.slice(0, 8) + '01', hasta: today };
+  if (p === 'mesant') {
+    const first = today.slice(0, 8) + '01';
+    const lastPrev = addDays(first, -1);
+    return { desde: lastPrev.slice(0, 8) + '01', hasta: lastPrev };
+  }
+  const n = Number(p);
+  return { desde: addDays(yest, -(n - 1)), hasta: yest };
+}
+function rangeFromUrl() {
+  const q = new URLSearchParams(location.search);
+  const ok = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+  if (ok(q.get('desde')) && ok(q.get('hasta'))) return { desde: q.get('desde'), hasta: q.get('hasta') };
+  return presetRange('7');
+}
+let range = rangeFromUrl();
+
+function syncRangeUi() {
+  document.getElementById('fDesde').value = range.desde;
+  document.getElementById('fHasta').value = range.hasta;
+  document.querySelectorAll('.preset').forEach(b => {
+    const r = presetRange(b.dataset.p);
+    b.classList.toggle('on', r.desde === range.desde && r.hasta === range.hasta);
+  });
+}
+function setRange(r) {
+  const msg = document.getElementById('rangeMsg');
+  msg.style.display = 'none';
+  if (!r.desde || !r.hasta) return;
+  if (r.desde > r.hasta) [r.desde, r.hasta] = [r.hasta, r.desde];
+  if (daysBetween(r.desde, r.hasta) + 1 > MAX_DAYS) {
+    r.desde = addDays(r.hasta, -(MAX_DAYS - 1));
+    msg.textContent = `El rango máximo es ${MAX_DAYS} días; se ajustó la fecha inicial.`;
+    msg.style.display = 'block';
+  }
+  range = { desde: r.desde, hasta: r.hasta };
+  history.replaceState(null, '', `?desde=${range.desde}&hasta=${range.hasta}`);
+  syncRangeUi();
+  load();
+}
+document.getElementById('presets').addEventListener('click', e => {
+  const b = e.target.closest('.preset'); if (b) setRange(presetRange(b.dataset.p));
+});
+document.getElementById('btnApply').addEventListener('click', () =>
+  setRange({ desde: document.getElementById('fDesde').value, hasta: document.getElementById('fHasta').value }));
+
+// ── Render ──
 function render(data) {
   const root = document.getElementById('root');
   const sub = document.getElementById('subtitle');
+  root.classList.remove('loading');
 
   if (!data.configured) {
     sub.textContent = 'Integración no configurada';
     root.innerHTML = `<div class="panel state">
       La integración con FreeScout no está configurada en el servidor.<br>
-      Define <code>FREESCOUT_MCP_URL</code> (y <code>FREESCOUT_MCP_TOKEN</code> si tu servidor MCP lo requiere) en las variables de entorno.
+      Define <code>FREESCOUT_MCP_URL</code> en las variables de entorno.
     </div>`;
     return;
   }
@@ -283,97 +388,113 @@ function render(data) {
     return;
   }
 
-  const r = data.resumen, m = data.metricas, p = m.periodo, a = m.periodo_anterior || {};
+  // The server may clamp the range (future dates, > 92 days)
+  if (data.rango && (data.rango.desde !== range.desde || data.rango.hasta !== range.hasta)) {
+    range = { desde: data.rango.desde, hasta: data.rango.hasta };
+    history.replaceState(null, '', `?desde=${range.desde}&hasta=${range.hasta}`);
+    syncRangeUi();
+  }
+
+  const n = data.ahora, p = data.periodo, a = data.periodo_anterior;
   const at = new Date(data.fetchedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-  sub.innerHTML = `Actualizado ${esc(at)}${data.stale ? ' · <span class="stale">datos en caché, FreeScout no respondió</span>' : ''}`;
+  sub.innerHTML = `Buzón ${esc(data.buzon)} · ${data.agentes.length} agentes · Actualizado ${esc(at)}${data.stale ? ' · <span class="stale">datos en caché, FreeScout no respondió</span>' : ''}`;
 
-  const waitH = r.esperando_respuesta_de_agente?.el_mas_antiguo_espera_horas;
-  const kpis = [
-    { label: 'Activos', val: r.activos, sub: 'Abiertos ahora', rail: 'var(--accent)' },
-    { label: 'Pendientes', val: r.pendientes, sub: 'En espera de terceros', rail: 'var(--text-muted)' },
-    { label: 'Sin responsable', val: r.sin_responsable, sub: 'Nadie asignado', rail: r.sin_responsable > 0 ? 'var(--red)' : 'var(--green)' },
-    { label: 'Esperan agente', val: r.esperando_respuesta_de_agente?.tickets, sub: `El más antiguo: ${fmtHours(waitH)}`, rail: 'var(--amber)' },
-    { label: 'Hoy', val: `${r.nuevos_hoy}<span style="color:var(--text-dim);font-weight:500"> / </span>${r.cerrados_hoy}`, sub: 'Nuevos / cerrados', rail: 'var(--text-dim)' },
+  const rangeTxt = `${fmtDay(data.rango.desde)} – ${fmtDay(data.rango.hasta)}`;
+  const prevTxt = `${fmtDay(data.rango_anterior.desde)} – ${fmtDay(data.rango_anterior.hasta)}`;
+
+  const nowKpis = [
+    { label: 'Abiertos', val: fmtNum(n.abiertos), sub: `${n.activos} activos · ${n.pendientes} pendientes`, rail: 'var(--accent)' },
+    { label: 'Sin responsable', val: fmtNum(n.sin_responsable), sub: 'En el buzón, sin asignar', rail: n.sin_responsable > 0 ? 'var(--red)' : 'var(--green)' },
+    { label: 'Más antiguo', val: n.mas_antiguo_dias == null ? '—' : `${n.mas_antiguo_dias}<span class="u">d</span>`, sub: 'Días abierto', rail: 'var(--amber)' },
   ];
 
-  const metrics = [
-    { label: 'Nuevos', val: fmtNum(p.new), d: delta(p.new, a.new, { neutral: true }) },
-    { label: 'Cerrados', val: fmtNum(p.closed), d: delta(p.closed, a.closed) },
-    { label: 'Respuestas', val: fmtNum(p.replies), d: delta(p.replies, a.replies) },
-    { label: '1ª respuesta (mediana)', val: fmtMin(p.frt_median_min), d: delta(p.frt_median_min, a.frt_median_min, { lowerIsBetter: true }) },
-    { label: '1ª respuesta (p90)', val: fmtMin(p.frt_p90_min), d: delta(p.frt_p90_min, a.frt_p90_min, { lowerIsBetter: true }) },
-    { label: 'Resolución (mediana)', val: fmtHours(p.resolution_median_h), d: delta(p.resolution_median_h, a.resolution_median_h, { lowerIsBetter: true }) },
-    { label: 'Respondidos', val: p.answered_pct == null ? '—' : `${p.answered_pct}%`, d: delta(p.answered_pct, a.answered_pct) },
-    { label: 'Backlog al cierre', val: fmtNum(p.backlog_end), d: delta(p.backlog_end, a.backlog_end, { lowerIsBetter: true }) },
+  const periodKpis = [
+    { label: 'Cierre · mediana', val: bigDur(p.cierre_mediana_h), sub: 'De creado a cerrado', d: delta(p.cierre_mediana_h, a.cierre_mediana_h, { lowerIsBetter: true }), rail: 'var(--accent)' },
+    { label: 'Cierre · promedio', val: bigDur(p.cierre_promedio_h), sub: 'Afectado por casos largos', d: delta(p.cierre_promedio_h, a.cierre_promedio_h, { lowerIsBetter: true }), rail: 'var(--text-muted)' },
+    { label: 'Cierre · p90', val: bigDur(p.cierre_p90_h), sub: '9 de cada 10 cierran antes', d: delta(p.cierre_p90_h, a.cierre_p90_h, { lowerIsBetter: true }), rail: 'var(--amber)' },
+    { label: 'Cerrados en ≤ 24 h', val: p.cerrados_24h_pct == null ? '—' : `${p.cerrados_24h_pct}<span class="u">%</span>`, sub: 'Del total cerrado', d: delta(p.cerrados_24h_pct, a.cerrados_24h_pct), rail: 'var(--green)' },
+    { label: 'Nuevos', val: fmtNum(p.nuevos), sub: 'Creados en el rango', d: delta(p.nuevos, a.nuevos, { neutral: true }), rail: 'var(--text-dim)' },
+    { label: 'Cerrados', val: fmtNum(p.cerrados), sub: 'Por los 5 agentes', d: delta(p.cerrados, a.cerrados), rail: 'var(--green)' },
   ];
 
-  // Backlog age — sequential ramp: older buckets get more urgent colour
-  const ages = m.antiguedad_backlog || [];
+  const agents = data.por_agente;
+  const frtMax = Math.max(1, ...agents.map(g => g.primera_respuesta_mediana_min || 0));
+  const closeMax = Math.max(1, ...agents.map(g => g.cierre_mediana_h || 0));
+  const bar = (v, max, color, txt) => `<div class="tbar">
+      <div class="tbar-track"><div class="tbar-fill" style="width:${v == null ? 0 : Math.max(2, (v / max) * 100)}%;background:${color}"></div></div>
+      <span class="tbar-val${v == null ? ' na' : ''}">${txt}</span></div>`;
+
+  const ages = n.antiguedad || [];
   const ageMax = Math.max(1, ...ages.map(b => b.count));
-  const ageTotal = ages.reduce((s, b) => s + b.count, 0);
   const ramp = ['var(--green)', 'var(--accent)', 'var(--amber)', 'color-mix(in srgb, var(--amber) 45%, var(--red))', 'var(--red)'];
   const old = ages.slice(-2).reduce((s, b) => s + b.count, 0);
-
-  const agents = [...(m.por_agente || [])].sort((x, y) => (y.open_assigned - x.open_assigned) || (y.replies - x.replies));
-  const loadMax = Math.max(1, ...agents.map(g => g.open_assigned || 0));
   const num = v => `<td class="num${!v ? ' zero' : ''}">${v == null ? '—' : fmtNum(v)}</td>`;
+  const kpiHtml = k => `<div class="kpi" style="--rail:${k.rail}">
+      <div class="eyebrow">${k.label}</div>
+      <div class="kpi-val">${k.val}</div>
+      <div class="kpi-sub">${esc(k.sub)}</div>${k.d || ''}
+    </div>`;
 
   root.innerHTML = `
-    <div class="kpis">
-      ${kpis.map(k => `<div class="kpi" style="--rail:${k.rail}">
-        <div class="eyebrow">${k.label}</div>
-        <div class="kpi-val">${k.val ?? '—'}</div>
-        <div class="kpi-sub">${esc(k.sub)}</div>
-      </div>`).join('')}
-    </div>
+    <div class="section-title">Ahora <small>Tickets abiertos del buzón (agentes del equipo + sin asignar)</small></div>
+    <div class="kpis">${nowKpis.map(kpiHtml).join('')}</div>
+
+    <div class="section-title">Periodo <small>${esc(rangeTxt)} · ${data.rango.dias} días · comparado con ${esc(prevTxt)}</small></div>
+    <div class="kpis">${periodKpis.map(kpiHtml).join('')}</div>
 
     <div class="grid2">
       <div class="panel">
-        <div class="panel-head">
-          <div class="eyebrow">Últimos 7 días · ${esc(fmtDay(m.desde))} – ${esc(fmtDay(m.hasta))}</div>
-          <button class="refresh-btn" onclick="load(true)">Actualizar</button>
-        </div>
-        <div class="metrics">
-          ${metrics.map(x => `<div class="metric"><div class="metric-label">${x.label}</div><div class="metric-val">${x.val}</div>${x.d}</div>`).join('')}
+        <div class="panel-head"><div class="eyebrow">Tiempos por agente · medianas</div><button class="refresh-btn" onclick="load(true)">Actualizar</button></div>
+        <div class="tbars">
+          <div class="h hname">Agente</div>
+          <div class="h"><i style="background:var(--accent)"></i>1ª respuesta</div>
+          <div class="h"><i style="background:var(--amber)"></i>Cierre</div>
+          ${agents.map(g => `
+            <div class="who">${avatar(g.name)}<span class="who-name">${esc(g.name)}</span></div>
+            ${bar(g.primera_respuesta_mediana_min, frtMax, 'var(--accent)', fmtMin(g.primera_respuesta_mediana_min))}
+            ${bar(g.cierre_mediana_h, closeMax, 'var(--amber)', fmtHours(g.cierre_mediana_h))}
+          `).join('')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div class="eyebrow">Antigüedad del backlog</div><span class="hint">${fmtNum(ageTotal)} tickets</span></div>
+        <div class="panel-head"><div class="eyebrow">Antigüedad de abiertos</div><span class="hint">${fmtNum(n.abiertos)} tickets</span></div>
         ${ages.map((b, i) => `<div class="age-row">
           <div class="age-label">${esc(b.label)}</div>
           <div class="age-track"><div class="age-fill" style="width:${(b.count / ageMax) * 100}%;background:${ramp[Math.min(i, ramp.length - 1)]}"></div></div>
           <div class="age-count">${b.count}</div>
         </div>`).join('')}
-        <div class="age-foot">${ageTotal ? `${Math.round((old / ageTotal) * 100)}% del backlog tiene más de 7 días.` : ''}</div>
+        <div class="age-foot">${n.abiertos ? `${Math.round((old / n.abiertos) * 100)}% lleva más de 7 días abierto.` : ''}</div>
       </div>
     </div>
 
     <div class="panel">
-      <div class="panel-head"><div class="eyebrow">Por buzón</div></div>
+      <div class="panel-head"><div class="eyebrow">Por agente · ${esc(rangeTxt)}</div></div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Buzón</th><th class="num">Nuevos</th><th class="num">Cerrados</th><th class="num">Abiertos ahora</th><th class="num">1ª resp. mediana</th></tr></thead>
-        <tbody>${(m.por_buzon || []).map(b => `<tr>
-          <td>${esc(b.name)}</td>${num(b.new)}${num(b.closed)}${num(b.open_now)}<td class="num">${fmtMin(b.frt_median_min)}</td>
+        <thead><tr><th>Agente</th><th class="num">Abiertos ahora</th><th class="num">Cerrados</th><th class="num">Respuestas</th><th class="num">1ª resp. mediana</th><th class="num">Cierre mediana</th><th class="num">Cierre promedio</th></tr></thead>
+        <tbody>${agents.map(g => `<tr>
+          <td><span class="who">${avatar(g.name)}${esc(g.name)}</span></td>
+          ${num(g.abiertos)}${num(g.cerrados)}${num(g.respuestas)}
+          <td class="num">${fmtMin(g.primera_respuesta_mediana_min)}</td>
+          <td class="num">${fmtHours(g.cierre_mediana_h)}</td>
+          <td class="num">${fmtHours(g.cierre_promedio_h)}</td>
         </tr>`).join('')}</tbody>
       </table></div>
     </div>
 
-    <div class="panel">
-      <div class="panel-head"><div class="eyebrow">Por agente · últimos 7 días</div><span class="hint">Ordenado por tickets abiertos asignados</span></div>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>Agente</th><th class="num">Abiertos asignados</th><th class="num">Respuestas</th><th class="num">Cerrados</th><th class="num">1ª resp. mediana</th></tr></thead>
-        <tbody>${agents.map(g => `<tr>
-          <td><span class="who">${avatar(g.name)}${esc(g.name)}</span></td>
-          <td class="num${!g.open_assigned ? ' zero' : ''}">${fmtNum(g.open_assigned)}<span class="load-bar" style="width:${Math.round(((g.open_assigned || 0) / loadMax) * 60)}px"></span></td>
-          ${num(g.replies)}${num(g.closed)}<td class="num">${fmtMin(g.frt_median_min)}</td>
-        </tr>`).join('')}</tbody>
-      </table></div>
+    <div class="notes">
+      Tiempos en horas calendario (no laborales). El tiempo de cierre va de la creación del ticket a su cierre y se calcula solo con tickets del buzón ${esc(data.buzon)} cerrados por estos agentes.
+      La 1ª respuesta es la mediana que calcula FreeScout por agente${data.primera_respuesta_disponible ? '' : ' <span class="warn">(no disponible en este momento)</span>'}.
+      ${data.lista_parcial ? `<br><span class="warn">FreeScout devolvió ${fmtNum(data.tickets_leidos)} tickets y hay más; rangos muy antiguos pueden estar incompletos.</span>` : ''}
     </div>`;
 }
 
 async function load(force = false) {
+  const root = document.getElementById('root');
+  root.classList.add('loading');
   try {
-    const res = await fetch('/api/tickets' + (force ? '?refresh=1' : ''));
+    const qs = new URLSearchParams({ desde: range.desde, hasta: range.hasta });
+    if (force) qs.set('refresh', '1');
+    const res = await fetch('/api/tickets?' + qs);
     const raw = await res.text();
     let data;
     try { data = JSON.parse(raw); }
@@ -409,8 +530,9 @@ function toggleTheme() {
 }
 applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
 
+syncRangeUi();
 loadLeaders().then(() => load());
-setInterval(load, 5 * 60 * 1000);
+setInterval(() => load(), 5 * 60 * 1000);
 </script>
 </body>
 </html>

@@ -641,7 +641,7 @@
 <div class="tix-wrap" id="tixStrip" style="display:none;">
   <a class="panel tix" href="tickets.html">
     <div class="tix-head">
-      <div class="eyebrow">Mesa de ayuda · FreeScout</div>
+      <div class="eyebrow">Mesa de ayuda · Techsupport</div>
       <span class="tix-link">Ver tickets →</span>
     </div>
     <div class="tix-row" id="tixRow"></div>
@@ -1225,17 +1225,16 @@ async function loadTickets() {
   const strip = document.getElementById('tixStrip');
   try {
     const d = await fetch('/api/tickets').then(r => r.json());
-    if (!d.configured || d.error || !d.resumen) { strip.style.display = 'none'; return; }
-    const r = d.resumen, p = d.metricas?.periodo || {};
-    const frt = p.frt_median_min;
-    const frtTxt = frt == null ? '—' : frt < 60 ? `${Math.round(frt)}m` : frt < 2880 ? `${(frt / 60).toFixed(1).replace('.0', '')}h` : `${(frt / 1440).toFixed(1).replace('.0', '')}d`;
+    if (!d.configured || d.error || !d.ahora) { strip.style.display = 'none'; return; }
+    const n = d.ahora, p = d.periodo || {};
+    const dur = h => h == null ? '—' : h < 1 ? `${Math.round(h * 60)}m` : h < 48 ? `${h.toFixed(1).replace('.0', '')}h` : `${(h / 24).toFixed(1).replace('.0', '')}d`;
     const cells = [
-      { v: r.activos, l: 'Activos', rail: 'var(--accent)' },
-      { v: r.sin_responsable, l: 'Sin responsable', rail: r.sin_responsable > 0 ? 'var(--red)' : 'var(--green)' },
-      { v: r.esperando_respuesta_de_agente?.tickets, l: 'Esperan agente', rail: 'var(--amber)' },
-      { v: p.new, l: 'Nuevos (7 días)', rail: 'var(--text-dim)' },
-      { v: p.closed, l: 'Cerrados (7 días)', rail: 'var(--green)' },
-      { v: frtTxt, l: '1ª respuesta mediana', rail: 'var(--text-dim)' },
+      { v: n.abiertos, l: 'Abiertos', rail: 'var(--accent)' },
+      { v: n.sin_responsable, l: 'Sin responsable', rail: n.sin_responsable > 0 ? 'var(--red)' : 'var(--green)' },
+      { v: p.nuevos, l: 'Nuevos (7 días)', rail: 'var(--text-dim)' },
+      { v: p.cerrados, l: 'Cerrados (7 días)', rail: 'var(--green)' },
+      { v: dur(p.cierre_mediana_h), l: 'Cierre mediana', rail: 'var(--amber)' },
+      { v: n.mas_antiguo_dias == null ? '—' : `${n.mas_antiguo_dias}d`, l: 'Más antiguo abierto', rail: 'var(--text-dim)' },
     ];
     document.getElementById('tixRow').innerHTML = cells.map(c =>
       `<div class="tix-cell" style="--rail:${c.rail}"><b>${esc(String(c.v ?? '—'))}</b><span>${c.l}</span></div>`).join('');

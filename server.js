@@ -424,15 +424,20 @@ app.delete('/api/leader-tasks/:id', (req, res) => {
 });
 
 // ── FreeScout tickets (via the FreeScout MCP server) ──
-// FREESCOUT_MCP_URL   → Streamable HTTP endpoint of the MCP server (e.g. https://host/mcp)
-// FREESCOUT_MCP_TOKEN → optional bearer token sent as Authorization header
+// FREESCOUT_MCP_URL     → Streamable HTTP endpoint of the MCP server (may carry the secret in its path)
+// FREESCOUT_MCP_TOKEN   → optional bearer token sent as Authorization header
+// FREESCOUT_MAILBOX     → only tickets from this mailbox are counted
+// FREESCOUT_AGENTS      → comma-separated agent names; tickets of anyone else are ignored
 const FREESCOUT_MCP_URL = process.env.FREESCOUT_MCP_URL || '';
 const FREESCOUT_MCP_TOKEN = process.env.FREESCOUT_MCP_TOKEN || '';
+const FS_MAILBOX = process.env.FREESCOUT_MAILBOX || 'Techsupport';
+const FS_AGENTS = (process.env.FREESCOUT_AGENTS || 'Steven Solano,Jorge Agudelo,Isaac Gómez,Bryan Escobar,Emanuel Ríos Romero')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const FS_TZ = process.env.FREESCOUT_TZ || 'America/Bogota';
 const TICKETS_TTL_MS = (Number(process.env.FREESCOUT_CACHE_MINUTES) || 5) * 60 * 1000;
-let ticketsCache = null;      // { data, fetchedAt }
-let ticketsInflight = null;   // Promise while a refresh is running
-
-const TICKETS_TIMEOUT_MS = (Number(process.env.FREESCOUT_TIMEOUT_SECONDS) || 20) * 1000;
+const TICKETS_TIMEOUT_MS = (Number(process.env.FREESCOUT_TIMEOUT_SECONDS) || 30) * 1000;
+const MAX_RANGE_DAYS = 92; // limit of metricas_periodo
+const UNASSIGNED = 'Sin asignar';
 
 // Remove the MCP URL (it may carry the secret in its path/query) and the token from error text
 function scrubSecrets(msg) {
@@ -446,7 +451,8 @@ function scrubSecrets(msg) {
   return out.slice(0, 300);
 }
 
-async function callFreescoutTools() {
+// Open one MCP session, run fn(call), close it. Fails after TICKETS_TIMEOUT_MS.
+async function withFreescoutMcp(fn) {
   const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
   const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
   const headers = FREESCOUT_MCP_TOKEN ? { Authorization: `Bearer ${FREESCOUT_MCP_TOKEN}` } : {};
@@ -454,20 +460,16 @@ async function callFreescoutTools() {
   const client = new Client({ name: 'project-dashboard', version: '1.0.0' });
   let timer;
   const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`Sin respuesta del MCP en ${TICKETS_TIMEOUT_MS / 1000}s (¿IP bloqueada o URL incorrecta?)`)), TICKETS_TIMEOUT_MS);
+    timer = setTimeout(() => reject(new Error(`Sin respuesta del MCP en ${TICKETS_TIMEOUT_MS / 1000}s`)), TICKETS_TIMEOUT_MS);
   });
-  const work = (async () => {
-    await client.connect(transport);
-    const call = async (name, args = {}) => {
-      const r = await client.callTool({ name, arguments: args });
-      if (r.isError) throw new Error(`${name}: ${(r.content || []).map(c => c.text).join(' ')}`);
-      if (r.structuredContent) return r.structuredContent.result ?? r.structuredContent;
-      const text = (r.content || []).find(c => c.type === 'text')?.text;
-      return JSON.parse(text);
-    };
-    const [resumen, metricas] = await Promise.all([call('resumen_actual'), call('metricas_periodo')]);
-    return { resumen, metricas };
-  })();
+  const call = async (name, args = {}) => {
+    const r = await client.callTool({ name, arguments: args });
+    if (r.isError) throw new Error(`${name}: ${(r.content || []).map(c => c.text).join(' ')}`);
+    if (r.structuredContent) return r.structuredContent.result ?? r.structuredContent;
+    const text = (r.content || []).find(c => c.type === 'text')?.text;
+    return JSON.parse(text);
+  };
+  const work = (async () => { await client.connect(transport); return fn(call); })();
   try {
     return await Promise.race([work, timeout]);
   } finally {
@@ -477,56 +479,160 @@ async function callFreescoutTools() {
   }
 }
 
-app.get('/api/tickets', async (req, res) => {
-  if (!FREESCOUT_MCP_URL) {
-    return res.json({ configured: false });
+// Small TTL cache with in-flight de-duplication and last-good fallback
+const fsCache = new Map(); // key → { data, at, inflight }
+async function cached(key, loader, force) {
+  const e = fsCache.get(key) || {};
+  if (!force && e.data && Date.now() - e.at < TICKETS_TTL_MS) return { data: e.data, at: e.at, stale: false };
+  if (!e.inflight) {
+    e.inflight = loader()
+      .then(data => { e.data = data; e.at = Date.now(); })
+      .finally(() => { e.inflight = null; });
+    fsCache.set(key, e);
+    // Bound memory: one entry per requested date range
+    while (fsCache.size > 40) fsCache.delete(fsCache.keys().next().value);
   }
-  const fresh = ticketsCache && Date.now() - ticketsCache.fetchedAt < TICKETS_TTL_MS;
-  if (!fresh || req.query.refresh === '1') {
-    ticketsInflight = ticketsInflight || callFreescoutTools()
-      .then(data => { ticketsCache = { data, fetchedAt: Date.now() }; })
-      .finally(() => { ticketsInflight = null; });
-    try {
-      await ticketsInflight;
-    } catch (err) {
-      const detail = scrubSecrets(err && err.message);
-      console.error('FreeScout MCP error:', detail);
-      // 200 on purpose: EasyPanel's proxy replaces 502 bodies with its own HTML error page
-      if (!ticketsCache) return res.json({ configured: true, error: 'No se pudo consultar FreeScout.', detail });
-      // Serve the last good data, flagged as stale
-      return res.json({ configured: true, stale: true, fetchedAt: new Date(ticketsCache.fetchedAt).toISOString(), ...ticketsCache.data });
-    }
+  try {
+    await e.inflight;
+    return { data: e.data, at: e.at, stale: false };
+  } catch (err) {
+    if (e.data) return { data: e.data, at: e.at, stale: true, error: err };
+    throw err;
   }
-  res.json({ configured: true, stale: false, fetchedAt: new Date(ticketsCache.fetchedAt).toISOString(), ...ticketsCache.data });
-});
+}
 
-// TEMPORARY diagnostic for the FreeScout MCP "forbidden" error — remove once tickets work.
-// Shows this server's public egress IP and how the MCP answers a raw initialize request.
-app.get('/api/debug/freescout', async (req, res) => {
-  const out = { now: new Date().toISOString() };
-  const withTimeout = (ms) => AbortSignal.timeout(ms);
-  try {
-    const r = await fetch('https://api.ipify.org?format=json', { signal: withTimeout(8000) });
-    out.egressIp = (await r.json()).ip;
-  } catch (e) { out.egressIp = `error: ${e.message}`; }
-  try {
-    const u = new URL(FREESCOUT_MCP_URL);
-    out.mcpHost = u.host;
-    out.mcpPathSegments = u.pathname.split('/').filter(Boolean).length;
-    out.urlHasWhitespace = FREESCOUT_MCP_URL !== FREESCOUT_MCP_URL.trim();
-    out.tokenSet = !!FREESCOUT_MCP_TOKEN;
-    const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
-    if (FREESCOUT_MCP_TOKEN) headers.Authorization = `Bearer ${FREESCOUT_MCP_TOKEN}`;
-    const r = await fetch(FREESCOUT_MCP_URL, {
-      method: 'POST', headers, signal: withTimeout(10000),
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'project-dashboard-debug', version: '1' } } }),
-    });
-    const body = await r.text();
-    out.mcpStatus = r.status;
-    out.mcpBody = scrubSecrets(body.slice(0, 300));
-    out.mcpHeaders = Object.fromEntries([...r.headers].filter(([k]) => !/cookie|authorization/i.test(k)));
-  } catch (e) { out.mcpError = scrubSecrets(e.message); }
-  res.json(out);
+// ── Date / stats helpers ──
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+function todayLocal() { return new Intl.DateTimeFormat('en-CA', { timeZone: FS_TZ }).format(new Date()); }
+function addDays(iso, n) {
+  const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function daysBetween(a, b) { return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000); }
+// FreeScout dates are "YYYY-MM-DD HH:MM" in server-local time; both ends share the zone, so treat as UTC
+function hoursBetween(a, b) { return (Date.parse(b.replace(' ', 'T') + ':00Z') - Date.parse(a.replace(' ', 'T') + ':00Z')) / 3600000; }
+function median(xs) {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+function percentile(xs, p) {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.ceil((p / 100) * s.length) - 1)];
+}
+function mean(xs) { return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; }
+function round1(x) { return x == null ? null : Math.round(x * 10) / 10; }
+function normAgent(s) { return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
+const agentKeys = new Map(FS_AGENTS.map(a => [normAgent(a), a]));
+
+function periodStats(tickets, desde, hasta) {
+  const inRange = d => d && d.slice(0, 10) >= desde && d.slice(0, 10) <= hasta;
+  const nuevos = tickets.filter(t => inRange(t.creado)).length;
+  const closed = tickets.filter(t => t.agent && t.estado === 'cerrado' && inRange(t.cerrado));
+  const hrs = closed.map(t => hoursBetween(t.creado, t.cerrado)).filter(h => h >= 0);
+  return {
+    nuevos,
+    cerrados: closed.length,
+    cierre_mediana_h: round1(median(hrs)),
+    cierre_promedio_h: round1(mean(hrs)),
+    cierre_p90_h: round1(percentile(hrs, 90)),
+    cerrados_24h_pct: hrs.length ? Math.round((hrs.filter(h => h <= 24).length / hrs.length) * 100) : null,
+    _closed: closed,
+  };
+}
+
+app.get('/api/tickets', async (req, res) => {
+  if (!FREESCOUT_MCP_URL) return res.json({ configured: false });
+
+  // Range: default = last 7 complete days
+  const today = todayLocal();
+  let hasta = ISO_DAY.test(req.query.hasta || '') ? req.query.hasta : addDays(today, -1);
+  let desde = ISO_DAY.test(req.query.desde || '') ? req.query.desde : addDays(hasta, -6);
+  if (desde > hasta) [desde, hasta] = [hasta, desde];
+  if (hasta > today) hasta = today;
+  if (daysBetween(desde, hasta) + 1 > MAX_RANGE_DAYS) desde = addDays(hasta, -(MAX_RANGE_DAYS - 1));
+  const span = daysBetween(desde, hasta) + 1;
+  const prevHasta = addDays(desde, -1), prevDesde = addDays(prevHasta, -(span - 1));
+  const force = req.query.refresh === '1';
+
+  const [listR, metR] = await Promise.allSettled([
+    cached('list', () => withFreescoutMcp(call =>
+      call('buscar_tickets', { buzon: FS_MAILBOX, estado: 'todos', orden: 'recientes', limite: 5000 })), force),
+    cached(`met:${desde}:${hasta}`, () => withFreescoutMcp(call =>
+      call('metricas_periodo', { desde, hasta })), force),
+  ]);
+
+  // 200 on purpose: EasyPanel's proxy replaces 5xx bodies with its own HTML error page
+  if (listR.status === 'rejected') {
+    const detail = scrubSecrets(listR.reason && listR.reason.message);
+    console.error('FreeScout MCP error:', detail);
+    return res.json({ configured: true, error: 'No se pudo consultar FreeScout.', detail });
+  }
+  if (metR.status === 'rejected') console.error('FreeScout metricas_periodo error:', scrubSecrets(metR.reason && metR.reason.message));
+
+  const raw = listR.value.data;
+  // Keep only this mailbox and tickets that are unassigned or belong to the configured agents
+  const tickets = (raw.tickets || [])
+    .filter(t => normAgent(t.buzon) === normAgent(FS_MAILBOX))
+    .map(t => ({ ...t, agent: agentKeys.get(normAgent(t.responsable)) || null, unassigned: t.responsable === UNASSIGNED || !t.responsable }))
+    .filter(t => t.agent || t.unassigned);
+
+  const open = tickets.filter(t => t.estado !== 'cerrado');
+  const ageBuckets = [['< 1 día', 1], ['1-3 días', 3], ['3-7 días', 7], ['7-30 días', 30], ['> 30 días', Infinity]];
+  const ageOf = t => t.dias_abierto != null ? t.dias_abierto : Math.max(0, daysBetween(t.creado.slice(0, 10), today));
+  const ahora = {
+    abiertos: open.length,
+    activos: open.filter(t => t.estado === 'activo').length,
+    pendientes: open.filter(t => t.estado === 'pendiente').length,
+    sin_responsable: open.filter(t => t.unassigned).length,
+    mas_antiguo_dias: open.length ? Math.max(...open.map(ageOf)) : null,
+    antiguedad: ageBuckets.map(([label, max], i) => ({
+      label,
+      count: open.filter(t => { const a = ageOf(t); return a < max && a >= (i ? ageBuckets[i - 1][1] : 0); }).length,
+    })),
+  };
+
+  const cur = periodStats(tickets, desde, hasta);
+  const prev = periodStats(tickets, prevDesde, prevHasta);
+
+  const met = metR.status === 'fulfilled' ? metR.value.data : null;
+  const metAgents = new Map(((met && met.por_agente) || []).map(a => [normAgent(a.name), a]));
+  const por_agente = FS_AGENTS.map(name => {
+    const mine = cur._closed.filter(t => t.agent === name);
+    const hrs = mine.map(t => hoursBetween(t.creado, t.cerrado)).filter(h => h >= 0);
+    const m = metAgents.get(normAgent(name)) || {};
+    return {
+      name,
+      abiertos: open.filter(t => t.agent === name).length,
+      cerrados: mine.length,
+      cierre_mediana_h: round1(median(hrs)),
+      cierre_promedio_h: round1(mean(hrs)),
+      respuestas: m.replies ?? null,
+      primera_respuesta_mediana_min: m.frt_median_min ?? null,
+    };
+  });
+  delete cur._closed; delete prev._closed;
+
+  const at = Math.min(listR.value.at, metR.status === 'fulfilled' ? metR.value.at : Infinity);
+  res.json({
+    configured: true,
+    stale: listR.value.stale || (metR.status === 'fulfilled' && metR.value.stale),
+    fetchedAt: new Date(at).toISOString(),
+    buzon: FS_MAILBOX,
+    agentes: FS_AGENTS,
+    hoy: today,
+    rango: { desde, hasta, dias: span },
+    rango_anterior: { desde: prevDesde, hasta: prevHasta },
+    // true when the MCP may have capped the ticket list (old tickets might be missing)
+    lista_parcial: !!raw.hay_mas_resultados,
+    tickets_leidos: (raw.tickets || []).length,
+    ahora,
+    periodo: cur,
+    periodo_anterior: prev,
+    por_agente,
+    primera_respuesta_disponible: !!met,
+  });
 });
 
 // Debug endpoint to verify volume persistence
