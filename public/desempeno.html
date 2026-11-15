@@ -307,6 +307,21 @@
   .tlist .d { font-family: var(--font-mono); font-weight: 600; color: var(--text-muted); }
   .tlist .d.old { color: var(--red); }
   .tlist .d.mid { color: var(--amber); }
+  .tlist .s small { display: block; font-size: 0.66rem; color: var(--text-dim); margin-top: 0.05rem; }
+  .tlist li { padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
+  .tlist li:last-child { border-bottom: none; }
+  .st { font-family: var(--font-mono); font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.02rem 0.35rem; border-radius: 4px; margin-right: 0.3rem; }
+  .st-activo { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .st-pendiente { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+  .st-cerrado { color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
+  .tlist, .plist { max-height: 340px; overflow-y: auto; padding-right: 0.25rem; scrollbar-width: thin; }
+  .fchips { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+  .fchip { background: var(--tint); border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-family: var(--font-body); font-size: 0.7rem; padding: 0.18rem 0.55rem; cursor: pointer; }
+  .fchip span { font-family: var(--font-mono); color: var(--text-dim); margin-left: 0.15rem; }
+  .fchip:hover:not(:disabled) { color: var(--text); border-color: var(--border-focus); }
+  .fchip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .fchip.on span { color: var(--accent-ink); }
+  .fchip:disabled { opacity: 0.45; cursor: default; }
 
   /* Performance metrics */
   .pmetrics { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
@@ -467,6 +482,21 @@ function presetRange(p) {
   return { desde: addDays(yest, -(n - 1)), hasta: yest };
 }
 let selectedAgent = new URLSearchParams(location.search).get('agente') || null;
+// Filters persist across agent tabs
+let projFilter = 'todos';
+let tkFilter = 'todos';
+// Same stages as the rest of the dashboard
+function projStage(p, today) {
+  const pct = Number(p.pct) || 0;
+  if (pct >= 100) return 'completado';
+  return pct >= 75 ? 'avanzado' : pct >= 40 ? 'progreso' : 'inicio';
+}
+const PROJ_FILTERS = [['todos', 'Todos'], ['inicio', 'Inicio'], ['progreso', 'En progreso'], ['avanzado', 'Avanzado'], ['completado', 'Completado'], ['vencido', 'Vencidos']];
+const TK_FILTERS = [['todos', 'Todos'], ['activo', 'Activos'], ['pendiente', 'Pendientes'], ['cerrado', 'Cerrados']];
+function filterChips(kind, defs, counts, current) {
+  return `<div class="fchips" role="group" aria-label="Filtrar por estado">${defs.map(([k, label]) =>
+    `<button class="fchip${k === current ? ' on' : ''}" data-${kind}="${k}"${counts[k] ? '' : (k === 'todos' ? '' : ' disabled')}>${label} <span>${counts[k] || 0}</span></button>`).join('')}</div>`;
+}
 let lastRender = null;
 function updateUrl() {
   const q = new URLSearchParams({ desde: range.desde, hasta: range.hasta });
@@ -604,17 +634,33 @@ function renderCards(t, q) {
         <div class="pmeta">${when}${p.dep ? `<span>${esc(p.dep)}</span>` : ''}${isDone && Number(p.hours) ? `<span>${fmtNum(Number(p.hours))} h ahorradas</span>` : ''}</div>
       </li>`;
     };
+    const stageOf = p => projStage(p, today);
+    const isLateP = p => (Number(p.pct) || 0) < 100 && p.fechaFin && p.fechaFin < today;
+    const pCounts = { todos: ps.length, vencido: ps.filter(isLateP).length };
+    for (const p of ps) pCounts[stageOf(p)] = (pCounts[stageOf(p)] || 0) + 1;
+    const pShown = [...active.slice().sort(byDue), ...completed]
+      .filter(p => projFilter === 'todos' || (projFilter === 'vencido' ? isLateP(p) : stageOf(p) === projFilter));
     const projHtml = ps.length ? `
-      <ul class="plist">${active.slice().sort(byDue).map(projItem).join('')}${completed.map(projItem).join('')}</ul>
+      ${filterChips('pf', PROJ_FILTERS, pCounts, projFilter)}
+      ${pShown.length ? `<ul class="plist">${pShown.map(projItem).join('')}</ul>` : '<div class="muted-note">Ningún proyecto en este estado.</div>'}
       <div class="muted-note">${active.length} activo${active.length === 1 ? '' : 's'} · ${done} completado${done === 1 ? '' : 's'}${hours ? ` · ${fmtNum(hours)} h ahorradas en total` : ''}</div>`
       : '<div class="muted-note">Sin proyectos asignados en el dashboard.</div>';
 
-    const tkHtml = tk.length ? `<ul class="tlist">${tk.slice(0, 8).map(x => `<li>
-        <span class="n">#${esc(x.numero)}</span>
-        <span class="s" title="${esc(x.asunto)}">${esc(x.asunto)}</span>
-        <span class="d ${x.dias > 7 ? 'old' : x.dias > 3 ? 'mid' : ''}">${x.dias} d</span></li>`).join('')}</ul>
-      ${tk.length > 8 ? `<div class="muted-note">y ${tk.length - 8} más</div>` : ''}`
-      : '<div class="muted-note">Sin tickets abiertos.</div>';
+    const tkClosed = a.tickets_cerrados || [];
+    const tkAll = [...tk, ...tkClosed];
+    const tCounts = { todos: tkAll.length, activo: tk.filter(x => x.estado === 'activo').length, pendiente: tk.filter(x => x.estado === 'pendiente').length, cerrado: tkClosed.length };
+    const tShown = tkAll.filter(x => tkFilter === 'todos' || x.estado === tkFilter);
+    const stLabel = { activo: 'Activo', pendiente: 'Pendiente', cerrado: 'Cerrado' };
+    const tkItem = x => x.estado === 'cerrado'
+      ? `<li><span class="n">#${esc(x.numero)}</span>
+          <span class="s" title="${esc(x.asunto)}">${esc(x.asunto)}<small><span class="st st-cerrado">Cerrado</span> ${esc(fmtDay(x.cerrado.slice(0, 10)))}</small></span>
+          <span class="d" title="Tiempo de cierre">${esc(fmtHours(x.horas_cierre))}</span></li>`
+      : `<li><span class="n">#${esc(x.numero)}</span>
+          <span class="s" title="${esc(x.asunto)}">${esc(x.asunto)}<small><span class="st st-${esc(x.estado)}">${esc(stLabel[x.estado] || x.estado)}</span> desde ${esc(fmtDay(x.creado.slice(0, 10)))}</small></span>
+          <span class="d ${x.dias > 7 ? 'old' : x.dias > 3 ? 'mid' : ''}" title="Días abierto">${x.dias} d</span></li>`;
+    const tkHtml = `
+      ${filterChips('tf', TK_FILTERS, tCounts, tkFilter)}
+      ${tShown.length ? `<ul class="tlist">${tShown.map(tkItem).join('')}</ul>` : `<div class="muted-note">${tkAll.length ? 'Ningún ticket en este estado.' : 'Sin tickets abiertos ni cerrados en el rango.'}</div>`}`;
 
     const ts = tasksFor(a.name).slice().sort((x, y) =>
       (x.categoria || '').localeCompare(y.categoria || '', 'es') || (y.expertisePoints || 0) - (x.expertisePoints || 0) || (x.nombre || '').localeCompare(y.nombre || '', 'es'));
@@ -665,7 +711,7 @@ function renderCards(t, q) {
           ${projHtml}
         </div>
         <div class="acol">
-          <div class="acol-head"><span class="eyebrow">Tickets abiertos</span><span class="acol-sum">más antiguos primero</span></div>
+          <div class="acol-head"><span class="eyebrow">Tickets</span><span class="acol-sum">abiertos + cerrados en el rango</span></div>
           ${tkHtml}
         </div>
         <div class="acol">
@@ -709,6 +755,13 @@ function selectAgent(name) {
   if (btn) { btn.focus(); btn.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
 }
 document.getElementById('root').addEventListener('click', e => {
+  const f = e.target.closest('.fchip');
+  if (f && !f.disabled) {
+    if (f.dataset.pf) projFilter = f.dataset.pf;
+    if (f.dataset.tf) tkFilter = f.dataset.tf;
+    if (lastRender) renderCards(lastRender.t, lastRender.q);
+    return;
+  }
   const b = e.target.closest('.atab'); if (b) selectAgent(b.dataset.agent);
 });
 document.getElementById('root').addEventListener('keydown', e => {

@@ -701,6 +701,10 @@ app.get('/api/tickets', async (req, res) => {
       tickets_abiertos: mineOpen
         .map(t => ({ numero: t.numero, asunto: t.asunto, estado: t.estado, creado: t.creado, dias: ageOf(t) }))
         .sort((x, y) => y.dias - x.dias),
+      // Closed by this agent inside the range, most recent first
+      tickets_cerrados: mine
+        .map(t => ({ numero: t.numero, asunto: t.asunto, estado: 'cerrado', creado: t.creado, cerrado: t.cerrado, horas_cierre: round1(hoursBetween(t.creado, t.cerrado)) }))
+        .sort((x, y) => y.cerrado.localeCompare(x.cerrado)),
       cerrados: mine.length,
       cierre_mediana_h: round1(median(hrs)),
       cierre_promedio_h: round1(mean(hrs)),
