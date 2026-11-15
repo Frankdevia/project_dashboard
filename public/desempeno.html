@@ -258,6 +258,15 @@
   }
   /* ===== Agent performance cards ===== */
   .acards { display: flex; flex-direction: column; gap: 1rem; }
+  .atabs { position: relative; display: flex; gap: 0.45rem; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+  .atab { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.4rem 0.75rem 0.4rem 0.4rem; color: var(--text-muted); font-family: var(--font-body); font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+  .atab:hover { color: var(--text); border-color: var(--border-focus); }
+  .atab.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .atab.on .avatar { border-color: transparent; background: var(--bg-card); }
+  .atab .cnt { font-family: var(--font-mono); font-size: 0.68rem; background: var(--tint); border: 1px solid var(--border); border-radius: 999px; padding: 0.02rem 0.45rem; }
+  .atab.on .cnt { background: rgba(0,0,0,0.14); border-color: transparent; }
+  .atab .wdot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+  .atab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .acard { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; animation: cardIn 0.3s ease-out both; }
   @keyframes cardIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .acard-head { display: flex; align-items: center; gap: 1rem; padding: 1.1rem 1.4rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
@@ -306,7 +315,7 @@
   .pm-t.worse { color: var(--red); }
 
   /* Assigned routine tasks, card style */
-  .atasks { border-top: 1px solid var(--border); padding: 1.1rem 1.4rem 1.3rem; display: flex; flex-direction: column; gap: 0.8rem; }
+  .atasks { border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem 1.3rem; display: flex; flex-direction: column; gap: 0.8rem; }
   .tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.6rem; }
   .tcard { background: var(--tint); border: 1px solid var(--border); border-left: 3px solid var(--rail, var(--accent)); border-radius: var(--radius-sm); padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
   .tcard-name { font-family: var(--font-display); font-weight: 600; font-size: 0.86rem; line-height: 1.3; color: var(--text); }
@@ -454,6 +463,13 @@ function presetRange(p) {
   const n = Number(p);
   return { desde: addDays(yest, -(n - 1)), hasta: yest };
 }
+let selectedAgent = new URLSearchParams(location.search).get('agente') || null;
+let lastRender = null;
+function updateUrl() {
+  const q = new URLSearchParams({ desde: range.desde, hasta: range.hasta });
+  if (selectedAgent) q.set('agente', selectedAgent);
+  history.replaceState(null, '', '?' + q);
+}
 function rangeFromUrl() {
   const q = new URLSearchParams(location.search);
   const ok = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
@@ -481,7 +497,7 @@ function setRange(r) {
     msg.style.display = 'block';
   }
   range = { desde: r.desde, hasta: r.hasta };
-  history.replaceState(null, '', `?desde=${range.desde}&hasta=${range.hasta}`);
+  updateUrl();
   syncRangeUi();
   load();
 }
@@ -535,7 +551,7 @@ function renderCards(t, q) {
   }
   if (t.rango && (t.rango.desde !== range.desde || t.rango.hasta !== range.hasta)) {
     range = { desde: t.rango.desde, hasta: t.rango.hasta };
-    history.replaceState(null, '', `?desde=${range.desde}&hasta=${range.hasta}`);
+    updateUrl();
     syncRangeUi();
   }
 
@@ -554,7 +570,7 @@ function renderCards(t, q) {
   };
   const qBy = new Map(qOk ? q.agentes.map(a => [a.name, a]) : []);
 
-  const cards = t.por_agente.map(a => {
+  const entries = t.por_agente.map(a => {
     const qa = qBy.get(a.name);
     const ps = projectsFor(a.name);
     const active = ps.filter(p => (Number(p.pct) || 0) < 100);
@@ -615,7 +631,7 @@ function renderCards(t, q) {
       ${pm('Cerrados sin respuesta', qa ? fmtNum(qa.cerrados_sin_respuesta) : '—', qa && qa.al_vuelo ? `<span class="pm-t">${qa.al_vuelo} casos al vuelo</span>` : '')}
     </div>`;
 
-    return `<article class="acard">
+    const html = `<article class="acard" role="tabpanel" aria-label="${esc(a.name)}">
       <div class="acard-head">
         ${leaderPhoto(a.name)}
         <div>
@@ -630,6 +646,7 @@ function renderCards(t, q) {
           </div>
         </div>
       </div>
+      ${tasksHtml}
       <div class="acard-body">
         <div class="acol">
           <div class="acol-head"><span class="eyebrow">Proyectos</span><span class="acol-sum">${avg == null ? '' : `Avance promedio ${avg}%`}</span></div>
@@ -644,11 +661,21 @@ function renderCards(t, q) {
           ${perfHtml}
         </div>
       </div>
-      ${tasksHtml}
     </article>`;
-  }).join('');
+    return { name: a.name, html, abiertos: tk.length, alerta: late.length > 0 || old > 0 };
+  });
 
-  root.innerHTML = `<div class="acards">${cards}</div>
+  const names = entries.map(e => e.name);
+  if (!names.includes(selectedAgent)) { selectedAgent = names[0] || null; updateUrl(); }
+  const current = entries.find(e => e.name === selectedAgent);
+  const tabs = `<div class="atabs" role="tablist" aria-label="Agentes">${entries.map(e => `
+    <button class="atab${e.name === selectedAgent ? ' on' : ''}" role="tab" aria-selected="${e.name === selectedAgent}" data-agent="${esc(e.name)}"
+      title="${e.abiertos} tickets abiertos${e.alerta ? ' · con alertas' : ''}">
+      ${avatar(e.name)}<span>${esc(e.name)}</span><span class="cnt">${e.abiertos}</span>${e.alerta ? '<span class="wdot" aria-label="con alertas"></span>' : ''}
+    </button>`).join('')}</div>`;
+
+  lastRender = { t, q };
+  root.innerHTML = `${tabs}<div class="acards">${current ? current.html : ''}</div>
     <div class="notes" style="margin-top:1rem">
       Proyectos y tareas: los del dashboard cuyo líder o encargado coincide con el agente. Tickets: buzón ${esc(t.buzon)}.
       Cierre y 1ª respuesta en horas calendario; "1ª resp. en meta" usa horas laborales${qOk && q.metas ? ` (≤ ${esc(q.metas.primera_respuesta)} h)` : ''}.
@@ -656,7 +683,29 @@ function renderCards(t, q) {
       ${qOk ? '' : (q && q.error ? `<span class="warn">Satisfacción y metas no disponibles: ${esc(q.error)}</span>` : '')}
       ${t.lista_parcial ? '<br><span class="warn">La lista de tickets puede estar incompleta.</span>' : ''}
     </div>`;
+  // Keep the active tab visible when the tab bar scrolls (narrow screens)
+  const on = root.querySelector('.atab.on');
+  if (on) { const bar = on.parentElement; bar.scrollLeft = on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2; }
 }
+
+function selectAgent(name) {
+  if (!name || name === selectedAgent) return;
+  selectedAgent = name;
+  updateUrl();
+  if (lastRender) renderCards(lastRender.t, lastRender.q);
+  const btn = [...document.querySelectorAll('.atab')].find(b => b.dataset.agent === name);
+  if (btn) { btn.focus(); btn.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+}
+document.getElementById('root').addEventListener('click', e => {
+  const b = e.target.closest('.atab'); if (b) selectAgent(b.dataset.agent);
+});
+document.getElementById('root').addEventListener('keydown', e => {
+  if (!e.target.closest('.atab') || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  const tabs = [...document.querySelectorAll('.atab')];
+  const i = tabs.findIndex(b => b.dataset.agent === selectedAgent);
+  const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+  if (next) { e.preventDefault(); selectAgent(next.dataset.agent); }
+});
 
 let lastTickets = null;
 async function load(force = false) {
