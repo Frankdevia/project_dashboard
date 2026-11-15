@@ -323,6 +323,45 @@
   .fchip.on span { color: var(--accent-ink); }
   .fchip:disabled { opacity: 0.45; cursor: default; }
 
+  /* Ticket detail drawer */
+  .tk-row { cursor: pointer; border-radius: 6px; transition: background 0.12s; }
+  .tk-row:hover, .tk-row:focus-visible { background: var(--tint); outline: none; }
+  .tk-row:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+  .tk-overlay { position: fixed; inset: 0; z-index: 4000; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); display: flex; justify-content: flex-end; }
+  .tk-overlay[hidden] { display: none; }
+  .tk-panel { width: min(680px, 100%); height: 100%; background: var(--bg); border-left: 1px solid var(--border-focus); overflow-y: auto; animation: tkIn 0.2s ease-out; display: flex; flex-direction: column; }
+  @keyframes tkIn { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .tk-top { position: sticky; top: 0; z-index: 1; background: var(--bg); border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem 1rem; display: flex; gap: 1rem; align-items: flex-start; }
+  .tk-top h2 { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; line-height: 1.3; color: var(--text); }
+  .tk-top .tk-num { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.3rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .tk-close { margin-left: auto; flex-shrink: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 50%; width: 34px; height: 34px; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; line-height: 1; }
+  .tk-close:hover { color: var(--text); border-color: var(--border-focus); }
+  .tk-content { padding: 1.1rem 1.4rem 2rem; display: flex; flex-direction: column; gap: 1.1rem; }
+  .tk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem; }
+  .tk-f { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.55rem 0.7rem; min-width: 0; }
+  .tk-f .l { font-size: 0.66rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--font-mono); }
+  .tk-f .v { font-size: 0.86rem; color: var(--text); margin-top: 0.15rem; overflow-wrap: anywhere; }
+  .tk-f .v.mono { font-family: var(--font-mono); font-weight: 600; }
+  .tk-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .tk-btn { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 0.45rem 0.9rem; font-family: var(--font-body); font-size: 0.82rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+  .tk-btn.ghost { background: var(--bg-card); color: var(--text-muted); border-color: var(--border); font-weight: 500; }
+  .tk-btn.ghost:hover { color: var(--text); border-color: var(--border-focus); }
+  .tk-msgs { display: flex; flex-direction: column; gap: 0.7rem; }
+  .tk-msg { border: 1px solid var(--border); border-left: 3px solid var(--rail, var(--text-dim)); border-radius: var(--radius-sm); background: var(--bg-card); padding: 0.7rem 0.85rem; }
+  .tk-msg.usuario { --rail: var(--text-muted); }
+  .tk-msg.respuesta { --rail: var(--accent); }
+  .tk-msg.nota { --rail: var(--amber); background: color-mix(in srgb, var(--amber) 6%, var(--bg-card)); }
+  .tk-msg-h { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.74rem; color: var(--text-muted); margin-bottom: 0.4rem; flex-wrap: wrap; }
+  .tk-msg-h b { color: var(--text); font-weight: 600; }
+  .tk-msg-t { font-size: 0.84rem; color: var(--text); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow-y: auto; }
+  .tk-login { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+  .tk-login p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+  .tk-login .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .tk-login input { flex: 1; min-width: 140px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font-body); font-size: 0.85rem; padding: 0.5rem 0.7rem; }
+  .tk-login input:focus { outline: none; border-color: var(--accent); }
+  .tk-login .err { color: var(--red); font-size: 0.78rem; }
+  @media (max-width: 600px) { .tk-top, .tk-content { padding-left: 1rem; padding-right: 1rem; } }
+
   /* Performance metrics */
   .pmetrics { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
   .pm { background: var(--tint); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.55rem 0.65rem; display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
@@ -419,6 +458,10 @@
     <div class="range-msg" id="rangeMsg"></div>
   </div>
   <div id="root" style="display:flex;flex-direction:column;gap:1rem;"><div class="panel state">Cargando proyectos y tickets…</div></div>
+</div>
+
+<div class="tk-overlay" id="tkOverlay" hidden>
+  <aside class="tk-panel" role="dialog" aria-modal="true" aria-labelledby="tkTitle" id="tkPanel"></aside>
 </div>
 
 <script>
@@ -652,10 +695,10 @@ function renderCards(t, q) {
     const tShown = tkAll.filter(x => tkFilter === 'todos' || x.estado === tkFilter);
     const stLabel = { activo: 'Activo', pendiente: 'Pendiente', cerrado: 'Cerrado' };
     const tkItem = x => x.estado === 'cerrado'
-      ? `<li><span class="n">#${esc(x.numero)}</span>
+      ? `<li class="tk-row" data-ticket="${esc(x.numero)}" tabindex="0" role="button" aria-label="Ver ticket #${esc(x.numero)}"><span class="n">#${esc(x.numero)}</span>
           <span class="s" title="${esc(x.asunto)}">${esc(x.asunto)}<small><span class="st st-cerrado">Cerrado</span> ${esc(fmtDay(x.cerrado.slice(0, 10)))}</small></span>
           <span class="d" title="Tiempo de cierre">${esc(fmtHours(x.horas_cierre))}</span></li>`
-      : `<li><span class="n">#${esc(x.numero)}</span>
+      : `<li class="tk-row" data-ticket="${esc(x.numero)}" tabindex="0" role="button" aria-label="Ver ticket #${esc(x.numero)}"><span class="n">#${esc(x.numero)}</span>
           <span class="s" title="${esc(x.asunto)}">${esc(x.asunto)}<small><span class="st st-${esc(x.estado)}">${esc(stLabel[x.estado] || x.estado)}</span> desde ${esc(fmtDay(x.creado.slice(0, 10)))}</small></span>
           <span class="d ${x.dias > 7 ? 'old' : x.dias > 3 ? 'mid' : ''}" title="Días abierto">${x.dias} d</span></li>`;
     const tkHtml = `
@@ -755,6 +798,8 @@ function selectAgent(name) {
   if (btn) { btn.focus(); btn.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
 }
 document.getElementById('root').addEventListener('click', e => {
+  const row = e.target.closest('.tk-row');
+  if (row) { openTicket(row.dataset.ticket); return; }
   const f = e.target.closest('.fchip');
   if (f && !f.disabled) {
     if (f.dataset.pf) projFilter = f.dataset.pf;
@@ -765,11 +810,125 @@ document.getElementById('root').addEventListener('click', e => {
   const b = e.target.closest('.atab'); if (b) selectAgent(b.dataset.agent);
 });
 document.getElementById('root').addEventListener('keydown', e => {
+  const row = e.target.closest && e.target.closest('.tk-row');
+  if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openTicket(row.dataset.ticket); return; }
   if (!e.target.closest('.atab') || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
   const tabs = [...document.querySelectorAll('.atab')];
   const i = tabs.findIndex(b => b.dataset.agent === selectedAgent);
   const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
   if (next) { e.preventDefault(); selectAgent(next.dataset.agent); }
+});
+
+// ── Ticket detail drawer ──
+let openTicketNum = null, lastFocus = null;
+const TK_TIPO = { usuario: 'Solicitante', respuesta: 'Respuesta', nota: 'Nota interna' };
+const TK_EST = { activo: 'Activo', pendiente: 'Pendiente', cerrado: 'Cerrado', closed: 'Cerrado', active: 'Activo', pending: 'Pendiente' };
+const fmtStamp = s => {
+  if (!s) return '—';
+  const [d, h] = s.split(' ');
+  return `${fmtDay(d)}${h ? ' · ' + h : ''}`;
+};
+function quickMeta(numero) {
+  const t = lastRender && lastRender.t;
+  if (!t) return null;
+  for (const a of t.por_agente) {
+    const hit = [...(a.tickets_abiertos || []), ...(a.tickets_cerrados || [])].find(x => String(x.numero) === String(numero));
+    if (hit) return { ...hit, responsable: a.name };
+  }
+  return null;
+}
+function tkField(label, value, mono) {
+  return `<div class="tk-f"><div class="l">${label}</div><div class="v${mono ? ' mono' : ''}">${value}</div></div>`;
+}
+function renderTicket(d, loading) {
+  const panel = document.getElementById('tkPanel');
+  const m = d.ticket || {};
+  const c = d.conversacion;
+  const estado = m.estado || '';
+  const head = `<div class="tk-top">
+      <div style="min-width:0">
+        <div class="tk-num">#${esc(m.numero)} ${estado ? `<span class="st st-${esc(estado)}">${esc(TK_EST[estado] || estado)}</span>` : ''}${m.buzon ? `<span>${esc(m.buzon)}</span>` : ''}</div>
+        <h2 id="tkTitle">${esc(m.asunto || '')}</h2>
+      </div>
+      <button class="tk-close" onclick="closeTicket()" aria-label="Cerrar">&times;</button>
+    </div>`;
+
+  const fields = [
+    tkField('Responsable', esc(m.responsable || '—')),
+    c && c.solicitante ? tkField('Solicitante', esc(c.solicitante)) : '',
+    m.canal ? tkField('Canal', esc(m.canal === 'telefono' ? 'Teléfono / al vuelo' : m.canal)) : '',
+    tkField('Creado', esc(fmtStamp(m.creado))),
+    m.ultima_respuesta ? tkField('Última actividad', esc(fmtStamp(m.ultima_respuesta))) : '',
+    estado === 'cerrado' ? tkField('Cerrado', esc(fmtStamp(m.cerrado))) : '',
+    estado === 'cerrado' ? tkField('Tiempo de cierre', esc(fmtHours(m.horas_cierre)), true) : tkField('Días abierto', m.dias_abierto != null ? `${m.dias_abierto} d` : (m.dias != null ? `${m.dias} d` : '—'), true),
+    c && c.primera_respuesta_h != null ? tkField('1ª respuesta', `${esc(fmtHours(c.primera_respuesta_h))}${c.primera_respuesta_por ? ` · ${esc(c.primera_respuesta_por)}` : ''}`, true) : '',
+    (m.mensajes != null || c) ? tkField('Mensajes', esc(String(c ? c.total_mensajes : m.mensajes)), true) : '',
+  ].join('');
+
+  const actions = d.freescout_url ? `<div class="tk-actions"><a class="tk-btn" href="${esc(d.freescout_url)}" target="_blank" rel="noopener">Abrir en FreeScout ↗</a></div>` : '';
+
+  let conv;
+  if (loading) conv = '<div class="muted-note">Cargando conversación…</div>';
+  else if (d.requiere_login) conv = `<form class="tk-login" onsubmit="tkLogin(event)">
+      <p>La conversación incluye mensajes y datos personales de los solicitantes. Inicia sesión como administrador para verla.</p>
+      <div class="row"><input id="tkUser" placeholder="Usuario" autocomplete="username" required><input id="tkPass" type="password" placeholder="Contraseña" autocomplete="current-password" required></div>
+      <div class="row"><button class="tk-btn" type="submit">Iniciar sesión</button><span class="err" id="tkErr"></span></div>
+    </form>`;
+  else if (d.error) conv = `<div class="muted-note">${esc(d.error)}${d.detail ? ` <code>${esc(d.detail)}</code>` : ''} <button class="tk-btn ghost" onclick="openTicket(openTicketNum, true)">Reintentar</button></div>`;
+  else if (c && c.mensajes.length) conv = `<div class="tk-msgs">${c.mensajes.map(msg => `
+      <div class="tk-msg ${esc(msg.tipo || '')}">
+        <div class="tk-msg-h"><span><b>${esc(msg.autor || '—')}</b> · ${esc(TK_TIPO[msg.tipo] || msg.tipo || '')}</span><span>${esc(fmtStamp(msg.fecha))}</span></div>
+        <div class="tk-msg-t">${esc(msg.texto || '')}</div>
+      </div>`).join('')}</div>
+      ${c.total_mensajes > c.mensajes.length ? `<div class="muted-note">Se muestran ${c.mensajes.length} de ${c.total_mensajes} mensajes.</div>` : ''}`;
+  else conv = '<div class="muted-note">Sin mensajes.</div>';
+
+  panel.innerHTML = `${head}<div class="tk-content">
+      <div class="tk-grid">${fields}</div>
+      ${actions}
+      <div class="acol-head"><span class="eyebrow">Conversación</span>${c ? `<span class="acol-sum">más antiguo primero</span>` : ''}</div>
+      ${conv}
+    </div>`;
+}
+async function openTicket(numero, force = false) {
+  if (!numero) return;
+  const overlay = document.getElementById('tkOverlay');
+  if (overlay.hidden) lastFocus = document.activeElement;
+  openTicketNum = numero;
+  overlay.hidden = false;
+  document.body.style.overflow = 'hidden';
+  const q = quickMeta(numero);
+  renderTicket({ ticket: q || { numero } }, true);
+  document.querySelector('.tk-close').focus();
+  try {
+    const d = await fetch(`/api/tickets/detalle/${encodeURIComponent(numero)}${force ? '?refresh=1' : ''}`).then(r => r.json());
+    if (openTicketNum !== numero) return;
+    if (d.error && !d.ticket) renderTicket({ ticket: q || { numero }, error: d.error });
+    else renderTicket(d, false);
+  } catch {
+    if (openTicketNum === numero) renderTicket({ ticket: q || { numero }, error: 'Sin conexión con el servidor del dashboard.' });
+  }
+}
+function closeTicket() {
+  document.getElementById('tkOverlay').hidden = true;
+  document.body.style.overflow = '';
+  openTicketNum = null;
+  if (lastFocus && lastFocus.focus) lastFocus.focus();
+}
+async function tkLogin(e) {
+  e.preventDefault();
+  const err = document.getElementById('tkErr');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: document.getElementById('tkUser').value.trim(), pass: document.getElementById('tkPass').value }) });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); err.textContent = j.error || 'No se pudo iniciar sesión.'; return; }
+    openTicket(openTicketNum, true);
+  } catch { err.textContent = 'Sin conexión.'; }
+}
+document.getElementById('tkOverlay').addEventListener('click', e => { if (e.target.id === 'tkOverlay') closeTicket(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !document.getElementById('tkOverlay').hidden) closeTicket();
 });
 
 let lastTickets = null;

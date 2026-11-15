@@ -738,6 +738,68 @@ app.get('/api/tickets', async (req, res) => {
   });
 });
 
+// ── Ticket detail ──
+// Metadata comes from the cached (already public) ticket list. The conversation (message text,
+// requester names) comes from leer_ticket and is only returned to a logged-in admin.
+// Only tickets inside the dashboard scope (mailbox + configured agents or unassigned) can be read.
+const FS_WEB_URL = (process.env.FREESCOUT_WEB_URL || '').replace(/\/+$/, '');
+const detailCache = new Map(); // numero → { data, at }
+const DETAIL_TTL_MS = 2 * 60 * 1000;
+
+app.get('/api/tickets/detalle/:numero', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  if (!FREESCOUT_MCP_URL) return res.json({ configured: false });
+  const numero = Number(req.params.numero);
+  if (!Number.isInteger(numero) || numero <= 0) return res.status(400).json({ error: 'Número de ticket inválido.' });
+
+  const list = fsCache.get('list');
+  const meta = list && list.data && list.data.tickets.find(t => t.numero === numero);
+  const inScope = meta && normAgent(meta.buzon) === normAgent(FS_MAILBOX)
+    && (agentKeys.has(normAgent(meta.responsable)) || meta.responsable === UNASSIGNED || !meta.responsable);
+  if (!inScope) return res.status(404).json({ error: 'Este ticket no está dentro del alcance del dashboard.' });
+
+  const today = todayLocal();
+  const ticket = {
+    ...meta,
+    responsable: agentKeys.get(normAgent(meta.responsable)) || meta.responsable,
+    dias_abierto: meta.estado === 'cerrado' ? null : (meta.dias_abierto ?? Math.max(0, daysBetween(meta.creado.slice(0, 10), today))),
+    horas_cierre: meta.estado === 'cerrado' && meta.cerrado ? round1(hoursBetween(meta.creado, meta.cerrado)) : null,
+  };
+  const base = { configured: true, ticket, freescout_url: FS_WEB_URL ? `${FS_WEB_URL}/search?q=${numero}` : null };
+
+  if (!getSession(req)) return res.json({ ...base, requiere_login: true, conversacion: null });
+
+  try {
+    let e = detailCache.get(numero);
+    if (!e || req.query.refresh === '1' || Date.now() - e.at > DETAIL_TTL_MS) {
+      const data = await withFreescoutMcp(call => call('leer_ticket', { numero, max_mensajes: 100 }));
+      e = { data, at: Date.now() };
+      detailCache.set(numero, e);
+      while (detailCache.size > 100) detailCache.delete(detailCache.keys().next().value);
+    }
+    const d = e.data;
+    const mensajes = (d.mensajes || []).slice().sort((x, y) => (x.fecha || '').localeCompare(y.fecha || ''));
+    const firstUser = mensajes.find(m => m.tipo === 'usuario');
+    const firstReply = mensajes.find(m => m.tipo === 'respuesta' && (!firstUser || (m.fecha || '') >= (firstUser.fecha || '')));
+    res.json({
+      ...base,
+      conversacion: {
+        asunto: d.asunto,
+        estado: d.estado,
+        solicitante: d.usuario || null,
+        mensajes,
+        total_mensajes: Math.max(meta.mensajes || 0, mensajes.length),
+        primera_respuesta_h: firstUser && firstReply ? round1(hoursBetween(firstUser.fecha, firstReply.fecha)) : null,
+        primera_respuesta_por: firstReply ? firstReply.autor : null,
+      },
+    });
+  } catch (err) {
+    const detail = scrubSecrets(err && err.message);
+    console.error('FreeScout leer_ticket error:', detail);
+    res.json({ ...base, conversacion: null, error: 'No se pudo leer la conversación.', detail });
+  }
+});
+
 // ── Satisfaction ratings and business-hours goals (reporte_agentes) ──
 // reporte_agentes only covers 7-day windows ending at `hasta`, so the range is covered with
 // consecutive windows ending at the range end; the first one may start a few days before `desde`.
