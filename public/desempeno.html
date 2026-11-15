@@ -373,6 +373,31 @@
 
   /* Assigned routine tasks, card style */
   .atasks { border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem 1.3rem; display: flex; flex-direction: column; gap: 0.8rem; }
+  .atasks.collapsed .tasks-body { display: none; }
+  .atasks.collapsed { padding-bottom: 1.1rem; }
+  .tasks-toggle { margin-left: 0.6rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-family: var(--font-body); font-size: 0.72rem; padding: 0.2rem 0.7rem; cursor: pointer; }
+  .tasks-toggle:hover { color: var(--text); border-color: var(--border-focus); }
+  .ttable { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .ttable th { text-align: left; font-family: var(--font-mono); font-size: 0.64rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); padding: 0 0.7rem 0.55rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .ttable td { padding: 0.65rem 0.7rem; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text); white-space: normal; }
+  .ttable tr:last-child td { border-bottom: none; }
+  .ttable tbody tr:hover td { background: var(--tint); }
+  .ttable td:first-child { border-left: 3px solid var(--rail, var(--accent)); }
+  .tt-name { font-family: var(--font-display); font-weight: 600; width: 24%; }
+  .tt-cat { color: var(--text-muted); width: 18%; }
+  .ttable .tt-lvl { white-space: nowrap; font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted); width: 1%; }
+  .tt-desc { color: var(--text-muted); line-height: 1.5; }
+  .tt-none { color: var(--text-dim); font-style: italic; }
+  /* Narrow screens: one stacked block per task, nothing clipped */
+  @media (max-width: 700px) {
+    .ttable thead { display: none; }
+    .ttable, .ttable tbody, .ttable tr, .ttable td { display: block; width: auto; }
+    .ttable tr { border: 1px solid var(--border); border-left: 3px solid var(--rail, var(--accent)); border-radius: var(--radius-sm); margin-bottom: 0.5rem; padding: 0.55rem 0.7rem; background: var(--tint); }
+    .ttable td { border: none !important; padding: 0.12rem 0; }
+    .ttable tbody tr:hover td { background: transparent; }
+    .ttable .tt-cat { font-size: 0.74rem; }
+    .ttable .tt-desc { margin-top: 0.25rem; }
+  }
   .tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.6rem; }
   .tcard { background: var(--tint); border: 1px solid var(--border); border-left: 3px solid var(--rail, var(--accent)); border-radius: var(--radius-sm); padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
   .tcard-name { font-family: var(--font-display); font-weight: 600; font-size: 0.86rem; line-height: 1.3; color: var(--text); }
@@ -527,6 +552,8 @@ function presetRange(p) {
 let selectedAgent = new URLSearchParams(location.search).get('agente') || null;
 // Filters persist across agent tabs
 let projFilter = 'todos';
+let tasksOpen = true;
+try { tasksOpen = localStorage.getItem('desempeno.tareas') !== '0'; } catch (e) {}
 let tkFilter = 'todos';
 // Same stages as the rest of the dashboard
 function projStage(p, today) {
@@ -708,18 +735,25 @@ function renderCards(t, q) {
     const ts = tasksFor(a.name).slice().sort((x, y) =>
       (x.categoria || '').localeCompare(y.categoria || '', 'es') || (y.expertisePoints || 0) - (x.expertisePoints || 0) || (x.nombre || '').localeCompare(y.nombre || '', 'es'));
     const tsCats = new Set(ts.map(x => x.categoria).filter(Boolean)).size;
-    const tasksHtml = `<div class="atasks">
-      <div class="acol-head"><span class="eyebrow">Tareas asignadas · ${ts.length}</span><span class="acol-sum">${ts.length ? `${tsCats} categoría${tsCats === 1 ? '' : 's'} · <a href="tareas-rutinarias.html" style="color:var(--accent);text-decoration:none">Ver en Tareas Rutinarias →</a>` : ''}</span></div>
-      ${ts.length ? `<div class="tgrid">${ts.map(x => {
-        const lvl = Math.max(1, Math.min(5, Number(x.expertisePoints) || 1));
-        return `<div class="tcard" style="--rail:${levelColor(lvl)}">
-          <div class="tcard-name">${esc(x.nombre)}</div>
-          ${x.categoria ? `<span class="tcard-cat" title="${esc(x.categoria)}">${esc(x.categoria)}</span>` : ''}
-          ${x.descripcion ? `<div class="tcard-desc" title="${esc(x.descripcion)}">${esc(x.descripcion)}</div>` : ''}
-          <div class="tcard-lvl"><span class="dots">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= lvl ? 'on' : ''}"></i>`).join('')}</span>Nivel de experticia ${lvl}/5</div>
-        </div>`;
-      }).join('')}</div>` : '<div class="muted-note">Sin tareas rutinarias asignadas.</div>'}
-    </div>`;
+    const tasksHtml = `<section class="atasks${tasksOpen ? '' : ' collapsed'}">
+      <div class="acol-head">
+        <span class="eyebrow">Tareas asignadas · ${ts.length}</span>
+        <span class="acol-sum">${ts.length ? `${tsCats} categoría${tsCats === 1 ? '' : 's'} · <a href="tareas-rutinarias.html" style="color:var(--accent);text-decoration:none">Ver en Tareas Rutinarias →</a>` : ''}
+          ${ts.length ? `<button class="tasks-toggle" aria-expanded="${tasksOpen}" aria-controls="tasksBody">${tasksOpen ? 'Ocultar' : 'Mostrar'}</button>` : ''}</span>
+      </div>
+      ${ts.length ? `<div class="tbl-wrap tasks-body" id="tasksBody"><table class="ttable">
+        <thead><tr><th>Tarea</th><th>Categoría</th><th title="Nivel de experticia">Nivel</th><th>Descripción</th></tr></thead>
+        <tbody>${ts.map(x => {
+          const lvl = Math.max(1, Math.min(5, Number(x.expertisePoints) || 1));
+          return `<tr style="--rail:${levelColor(lvl)}">
+            <td class="tt-name">${esc(x.nombre)}</td>
+            <td class="tt-cat">${x.categoria ? esc(x.categoria) : '<span class="tt-none">—</span>'}</td>
+            <td class="tt-lvl"><span class="dots" aria-hidden="true">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= lvl ? 'on' : ''}"></i>`).join('')}</span> ${lvl}/5</td>
+            <td class="tt-desc">${x.descripcion ? esc(x.descripcion) : '<span class="tt-none">Sin descripción</span>'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>` : '<div class="muted-note">Sin tareas rutinarias asignadas.</div>'}
+    </section>`;
 
     const pm = (label, val, cmp) => `<div class="pm"><span class="pm-l">${label}</span><span class="pm-v">${val}</span>${cmp || ''}</div>`;
     const perfHtml = `<div class="pmetrics">
@@ -798,6 +832,15 @@ function selectAgent(name) {
   if (btn) { btn.focus(); btn.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
 }
 document.getElementById('root').addEventListener('click', e => {
+  const tg = e.target.closest('.tasks-toggle');
+  if (tg) {
+    tasksOpen = !tasksOpen;
+    try { localStorage.setItem('desempeno.tareas', tasksOpen ? '1' : '0'); } catch (err) {}
+    tg.closest('.atasks').classList.toggle('collapsed', !tasksOpen);
+    tg.setAttribute('aria-expanded', String(tasksOpen));
+    tg.textContent = tasksOpen ? 'Ocultar' : 'Mostrar';
+    return;
+  }
   const row = e.target.closest('.tk-row');
   if (row) { openTicket(row.dataset.ticket); return; }
   const f = e.target.closest('.fchip');
