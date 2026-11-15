@@ -500,6 +500,35 @@ app.get('/api/tickets', async (req, res) => {
   res.json({ configured: true, stale: false, fetchedAt: new Date(ticketsCache.fetchedAt).toISOString(), ...ticketsCache.data });
 });
 
+// TEMPORARY diagnostic for the FreeScout MCP "forbidden" error — remove once tickets work.
+// Shows this server's public egress IP and how the MCP answers a raw initialize request.
+app.get('/api/debug/freescout', async (req, res) => {
+  const out = { now: new Date().toISOString() };
+  const withTimeout = (ms) => AbortSignal.timeout(ms);
+  try {
+    const r = await fetch('https://api.ipify.org?format=json', { signal: withTimeout(8000) });
+    out.egressIp = (await r.json()).ip;
+  } catch (e) { out.egressIp = `error: ${e.message}`; }
+  try {
+    const u = new URL(FREESCOUT_MCP_URL);
+    out.mcpHost = u.host;
+    out.mcpPathSegments = u.pathname.split('/').filter(Boolean).length;
+    out.urlHasWhitespace = FREESCOUT_MCP_URL !== FREESCOUT_MCP_URL.trim();
+    out.tokenSet = !!FREESCOUT_MCP_TOKEN;
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
+    if (FREESCOUT_MCP_TOKEN) headers.Authorization = `Bearer ${FREESCOUT_MCP_TOKEN}`;
+    const r = await fetch(FREESCOUT_MCP_URL, {
+      method: 'POST', headers, signal: withTimeout(10000),
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'project-dashboard-debug', version: '1' } } }),
+    });
+    const body = await r.text();
+    out.mcpStatus = r.status;
+    out.mcpBody = scrubSecrets(body.slice(0, 300));
+    out.mcpHeaders = Object.fromEntries([...r.headers].filter(([k]) => !/cookie|authorization/i.test(k)));
+  } catch (e) { out.mcpError = scrubSecrets(e.message); }
+  res.json(out);
+});
+
 // Debug endpoint to verify volume persistence
 app.get('/api/debug/volume', (req, res) => {
   const dataDir = path.join(__dirname, 'data');
