@@ -294,6 +294,9 @@
   .pbar i { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
   .pmeta { font-size: 0.68rem; color: var(--text-dim); display: flex; gap: 0.5rem; flex-wrap: wrap; }
   .pmeta .late { color: var(--red); font-weight: 600; }
+  .pmeta .okk { color: var(--green); font-weight: 600; }
+  .plist li.pdone .pbar i { background: var(--green); }
+  .plist li.pdone .prow { color: var(--text-muted); }
   .muted-note { font-size: 0.74rem; color: var(--text-dim); }
 
   /* Open tickets */
@@ -585,17 +588,25 @@ function renderCards(t, q) {
     const csat = cal ? fmtLabPct(cal.excelente, calN) : null;
     const meta = qa ? fmtLabPct(qa.primera.cantidad - qa.primera.fuera_de_meta, qa.primera.cantidad) : null;
 
+    // All projects: active first (by due date), then completed (most recent first)
+    const byDue = (x, y) => (x.fechaFin || '9').localeCompare(y.fechaFin || '9');
+    const completed = ps.filter(p => (Number(p.pct) || 0) >= 100).sort((x, y) => (y.fechaFin || '').localeCompare(x.fechaFin || ''));
+    const projItem = p => {
+      const pct = Math.max(0, Math.min(100, Number(p.pct) || 0));
+      const isDone = pct >= 100;
+      const isLate = !isDone && p.fechaFin && p.fechaFin < today;
+      const when = isDone
+        ? `<span class="okk">Completado${p.fechaFin ? ' · ' + esc(fmtDay(p.fechaFin)) : ''}</span>`
+        : p.fechaFin ? `<span class="${isLate ? 'late' : ''}">${isLate ? 'Vencido · ' : 'Entrega '}${esc(fmtDay(p.fechaFin))}</span>` : '<span>Sin fecha de entrega</span>';
+      return `<li class="${isDone ? 'pdone' : ''}">
+        <div class="prow"><span class="pn" title="${esc(p.name)}">${esc(p.name)}</span><span class="pp">${pct}%</span></div>
+        <div class="pbar"><i style="width:${pct}%"></i></div>
+        <div class="pmeta">${when}${p.dep ? `<span>${esc(p.dep)}</span>` : ''}${isDone && Number(p.hours) ? `<span>${fmtNum(Number(p.hours))} h ahorradas</span>` : ''}</div>
+      </li>`;
+    };
     const projHtml = ps.length ? `
-      <ul class="plist">${active.sort((x, y) => (x.fechaFin || '9').localeCompare(y.fechaFin || '9')).map(p => {
-        const pct = Math.max(0, Math.min(100, Number(p.pct) || 0));
-        const isLate = p.fechaFin && p.fechaFin < today;
-        return `<li>
-          <div class="prow"><span class="pn" title="${esc(p.name)}">${esc(p.name)}</span><span class="pp">${pct}%</span></div>
-          <div class="pbar"><i style="width:${pct}%"></i></div>
-          <div class="pmeta">${p.fechaFin ? `<span class="${isLate ? 'late' : ''}">${isLate ? 'Vencido · ' : 'Entrega '}${esc(fmtDay(p.fechaFin))}</span>` : '<span>Sin fecha de entrega</span>'}${p.dep ? `<span>${esc(p.dep)}</span>` : ''}</div>
-        </li>`;
-      }).join('')}</ul>
-      ${done ? `<div class="muted-note">${done} completado${done === 1 ? '' : 's'}${hours ? ` · ${fmtNum(hours)} h ahorradas en total` : ''}</div>` : (hours ? `<div class="muted-note">${fmtNum(hours)} h ahorradas</div>` : '')}`
+      <ul class="plist">${active.slice().sort(byDue).map(projItem).join('')}${completed.map(projItem).join('')}</ul>
+      <div class="muted-note">${active.length} activo${active.length === 1 ? '' : 's'} · ${done} completado${done === 1 ? '' : 's'}${hours ? ` · ${fmtNum(hours)} h ahorradas en total` : ''}</div>`
       : '<div class="muted-note">Sin proyectos asignados en el dashboard.</div>';
 
     const tkHtml = tk.length ? `<ul class="tlist">${tk.slice(0, 8).map(x => `<li>
@@ -639,6 +650,7 @@ function renderCards(t, q) {
           <div class="acard-chips">
             <span class="chip"><b>${active.length}</b> proyecto${active.length === 1 ? '' : 's'} activo${active.length === 1 ? '' : 's'}</span>
             ${late.length ? `<span class="chip alert"><b>${late.length}</b> vencido${late.length === 1 ? '' : 's'}</span>` : ''}
+            ${done ? `<span class="chip"><b>${done}</b> completado${done === 1 ? '' : 's'}</span>` : ''}
             <span class="chip"><b>${tk.length}</b> ticket${tk.length === 1 ? '' : 's'} abierto${tk.length === 1 ? '' : 's'}</span>
             <span class="chip"><b>${ts.length}</b> tarea${ts.length === 1 ? '' : 's'}</span>
             ${old ? `<span class="chip alert"><b>${old}</b> con más de 7 d</span>` : ''}
