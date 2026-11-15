@@ -452,7 +452,7 @@ function scrubSecrets(msg) {
 }
 
 // Open one MCP session, run fn(call), close it. Fails after TICKETS_TIMEOUT_MS.
-async function withFreescoutMcp(fn) {
+async function withFreescoutMcp(fn, timeoutMs = TICKETS_TIMEOUT_MS) {
   const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
   const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
   const headers = FREESCOUT_MCP_TOKEN ? { Authorization: `Bearer ${FREESCOUT_MCP_TOKEN}` } : {};
@@ -460,7 +460,7 @@ async function withFreescoutMcp(fn) {
   const client = new Client({ name: 'project-dashboard', version: '1.0.0' });
   let timer;
   const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`Sin respuesta del MCP en ${TICKETS_TIMEOUT_MS / 1000}s`)), TICKETS_TIMEOUT_MS);
+    timer = setTimeout(() => reject(new Error(`Sin respuesta del MCP en ${timeoutMs / 1000}s`)), timeoutMs);
   });
   const call = async (name, args = {}) => {
     const r = await client.callTool({ name, arguments: args });
@@ -542,6 +542,58 @@ function periodStats(tickets, desde, hasta) {
   };
 }
 
+// ── Ticket list with pagination ──
+// buscar_tickets returns at most 50 tickets per call and has no offset, but `antiguedad_minima_dias`
+// (minimum age in days, closed tickets included) lets us walk backwards: after each page we ask
+// again for tickets at least as old as the oldest one seen. Pages overlap a little (deduped by number)
+// so that no ticket falls between two pages.
+const LIST_PAGE = 50;
+const LIST_MAX_PAGES = 80;
+const LIST_MARGIN_DAYS = 30; // also catch older tickets that were closed inside the range
+
+async function walkTickets(call, estado, stopBefore, today, out) {
+  let minAge = 0, pages = 0, stalled = false;
+  for (;;) {
+    const r = await call('buscar_tickets', { buzon: FS_MAILBOX, estado, orden: 'recientes', limite: LIST_PAGE, antiguedad_minima_dias: minAge });
+    const page = r.tickets || [];
+    for (const t of page) out.set(t.numero, t);
+    pages++;
+    if (!r.hay_mas_resultados || !page.length) break;
+    const oldest = page.reduce((m, t) => (t.creado < m ? t.creado : m), page[0].creado).slice(0, 10);
+    if (stopBefore && oldest < stopBefore) break;
+    if (pages >= LIST_MAX_PAGES) { stalled = true; break; }
+    // Step back to the oldest day seen (minus one day of overlap); always advance at least one day
+    const next = Math.max(minAge + 1, daysBetween(oldest, today) - 1);
+    if (next === minAge + 1 && daysBetween(oldest, today) - 1 <= minAge) stalled = true; // > 50 tickets in ~2 days
+    minAge = next;
+  }
+  return { pages, stalled };
+}
+
+async function fetchTicketList(needFrom) {
+  return withFreescoutMcp(async call => {
+    const today = todayLocal();
+    const byNumber = new Map();
+    const open = await walkTickets(call, 'abiertos', null, today, byNumber);          // every open ticket, any age
+    const hist = await walkTickets(call, 'todos', needFrom, today, byNumber);         // history back to needFrom
+    return {
+      tickets: [...byNumber.values()],
+      desde: needFrom,
+      paginas: open.pages + hist.pages,
+      parcial: open.stalled || hist.stalled,
+    };
+  }, 120 * 1000);
+}
+
+// One cached list; refetched deeper when a request needs older history than it covers
+async function getTicketList(needFrom, force) {
+  const e = fsCache.get('list');
+  const have = e && e.data && e.data.desde;
+  const deeper = have && needFrom < have;
+  const from = have && !deeper ? have : needFrom;
+  return cached('list', () => fetchTicketList(from), force || deeper);
+}
+
 // Range from ?desde&hasta — default = last 7 complete days, never in the future, at most MAX_RANGE_DAYS
 function parseRange(q) {
   const today = todayLocal();
@@ -557,6 +609,8 @@ function parseRange(q) {
 // Monday-start weeks: 12 weeks ending with the week that contains `hasta`
 const TREND_WEEKS = 12;
 function dayOfWeek(iso) { return (new Date(iso + 'T00:00:00Z').getUTCDay() + 6) % 7; } // Mon=0 … Sun=6
+function trendStart(hasta) { return addDays(addDays(hasta, -dayOfWeek(hasta)), -7 * (TREND_WEEKS - 1)); }
+function minDate(a, b) { return a < b ? a : b; }
 function weeklyTrend(tickets, hasta) {
   const lastMonday = addDays(hasta, -dayOfWeek(hasta));
   const firstMonday = addDays(lastMonday, -7 * (TREND_WEEKS - 1));
@@ -595,8 +649,7 @@ app.get('/api/tickets', async (req, res) => {
   const force = req.query.refresh === '1';
 
   const [listR, metR] = await Promise.allSettled([
-    cached('list', () => withFreescoutMcp(call =>
-      call('buscar_tickets', { buzon: FS_MAILBOX, estado: 'todos', orden: 'recientes', limite: 5000 })), force),
+    getTicketList(addDays(minDate(prevDesde, trendStart(hasta)), -LIST_MARGIN_DAYS), force),
     cached(`met:${desde}:${hasta}`, () => withFreescoutMcp(call =>
       call('metricas_periodo', { desde, hasta })), force),
   ]);
@@ -640,9 +693,14 @@ app.get('/api/tickets', async (req, res) => {
     const mine = cur._closed.filter(t => t.agent === name);
     const hrs = mine.map(t => hoursBetween(t.creado, t.cerrado)).filter(h => h >= 0);
     const m = metAgents.get(normAgent(name)) || {};
+    const mineOpen = open.filter(t => t.agent === name);
     return {
       name,
-      abiertos: open.filter(t => t.agent === name).length,
+      abiertos: mineOpen.length,
+      // Oldest first, without message content (buscar_tickets only returns metadata)
+      tickets_abiertos: mineOpen
+        .map(t => ({ numero: t.numero, asunto: t.asunto, estado: t.estado, creado: t.creado, dias: ageOf(t) }))
+        .sort((x, y) => y.dias - x.dias),
       cerrados: mine.length,
       cierre_mediana_h: round1(median(hrs)),
       cierre_promedio_h: round1(mean(hrs)),
@@ -664,8 +722,9 @@ app.get('/api/tickets', async (req, res) => {
     rango: { desde, hasta, dias: span },
     rango_anterior: { desde: prevDesde, hasta: prevHasta },
     // true when the MCP may have capped the ticket list (old tickets might be missing)
-    lista_parcial: !!raw.hay_mas_resultados,
+    lista_parcial: !!raw.parcial,
     tickets_leidos: (raw.tickets || []).length,
+    lista_desde: raw.desde,
     ahora,
     periodo: cur,
     periodo_anterior: prev,

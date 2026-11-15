@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Desempeño de Agentes</title>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #10151C;
+    --bg-card: #171E27;
+    --bg-card-hover: #1D2630;
+    --bg-input: #0B0F14;
+    --border: rgba(150,180,210,0.12);
+    --border-focus: rgba(150,180,210,0.30);
+    --text: #E7EDF3;
+    --text-muted: #93A1B0;
+    --text-dim: #586676;
+    --accent: #5BC6BE;
+    --accent-ink: #06201E;
+    --red: #F0524D;
+    --amber: #E0A030;
+    --blue: #5BC6BE;
+    --green: #3BA776;
+    --prio-alta: #F0524D;
+    --prio-media: #E0A030;
+    --prio-baja: #3BA776;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --track: rgba(255,255,255,0.07);
+    --tint: rgba(255,255,255,0.03);
+    --prio-alta-bg: rgba(240,82,77,0.14);
+    --prio-media-bg: rgba(224,160,48,0.14);
+    --prio-baja-bg: rgba(59,167,118,0.14);
+    --st-done: #3BA776; --st-done-bg: rgba(59,167,118,0.14);
+    --st-adv:  #5BC6BE; --st-adv-bg:  rgba(91,198,190,0.14);
+    --st-prog: #93A1B0; --st-prog-bg: rgba(147,161,176,0.12);
+    --st-init: #6B7686; --st-init-bg: rgba(120,135,155,0.10);
+  }
+  :root[data-theme="light"] {
+    --bg: #EEF1F4;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #F4F7FA;
+    --bg-input: #FFFFFF;
+    --border: rgba(20,45,70,0.13);
+    --border-focus: rgba(20,45,70,0.32);
+    --text: #16222E;
+    --text-muted: #52626F;
+    --text-dim: #8593A0;
+    --accent: #128C84;
+    --accent-ink: #FFFFFF;
+    --red: #D23A34;
+    --amber: #9C6B0E;
+    --blue: #128C84;
+    --green: #1C8A5B;
+    --track: rgba(20,45,70,0.10);
+    --tint: rgba(20,45,70,0.035);
+    --prio-alta: #D23A34;  --prio-alta-bg: rgba(210,58,52,0.12);
+    --prio-media: #9C6B0E; --prio-media-bg: rgba(156,107,14,0.13);
+    --prio-baja: #1C8A5B;  --prio-baja-bg: rgba(28,138,91,0.13);
+    --st-done: #1C8A5B; --st-done-bg: rgba(28,138,91,0.13);
+    --st-adv:  #128C84; --st-adv-bg:  rgba(18,140,132,0.13);
+    --st-prog: #52626F; --st-prog-bg: rgba(82,98,111,0.12);
+    --st-init: #8593A0; --st-init-bg: rgba(133,147,160,0.12);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .header { padding: 2.5rem 2rem 1.5rem; max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+  .header-left { flex: 1; }
+  .header-left h1 { font-family: var(--font-display); font-weight: 700; font-size: 2rem; letter-spacing: -0.03em; color: var(--text); }
+  .header-left h1 span { color: var(--text-dim); font-weight: 300; }
+  .header-left p { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
+  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+  .nav-links a { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 1.2rem; color: var(--text); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+  .nav-links a svg { opacity: 0.7; transition: opacity 0.2s; }
+  .nav-links a:hover { background: var(--bg-card-hover); border-color: var(--border-focus); }
+  .nav-links a:hover svg { opacity: 1; }
+  .nav-links a.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .nav-links a.active svg { opacity: 1; }
+
+  .nav-btn { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 1.2rem; color: var(--text); font-family: var(--font-body); font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+  .nav-btn svg { opacity: 0.7; transition: opacity 0.2s; }
+  .nav-btn:hover { background: var(--bg-card-hover); border-color: var(--border-focus); }
+  .nav-btn:hover svg { opacity: 1; }
+  /* Theme toggle — fixed circular icon in the top-right corner */
+  #btnTheme { position: fixed; top: 1rem; right: 1rem; z-index: 1500; width: 42px; height: 42px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg-card); border: 1px solid var(--border); box-shadow: 0 2px 12px rgba(0,0,0,0.28); transition: background 0.2s, border-color 0.2s, transform 0.15s; }
+  #btnTheme:hover { background: var(--bg-card-hover); border-color: var(--border-focus); transform: translateY(-1px); }
+  #btnTheme:active { transform: scale(0.94); }
+  #btnTheme svg { opacity: 0.9; transition: transform 0.4s ease, opacity 0.2s; }
+  #btnTheme:hover svg { opacity: 1; transform: rotate(40deg); }
+  .nav-links { padding-right: 3.5rem; }
+  @media (max-width: 600px) { #btnTheme { top: 0.75rem; right: 0.75rem; width: 38px; height: 38px; } .header { padding-right: 3.25rem; } }
+  /* ===== Tickets page ===== */
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 2rem 3rem; display: flex; flex-direction: column; gap: 1rem; }
+  .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.3rem 1.5rem; }
+  .eyebrow { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-dim); }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .panel-head .hint { font-size: 0.74rem; color: var(--text-muted); }
+  .section-title { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; color: var(--text); margin: 0.6rem 0 -0.2rem; display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  .section-title small { font-family: var(--font-body); font-weight: 400; font-size: 0.78rem; color: var(--text-muted); }
+
+  /* Range picker */
+  .range { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; padding: 0.9rem 1.1rem; }
+  .presets { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .preset { background: var(--tint); border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-family: var(--font-body); font-size: 0.78rem; padding: 0.35rem 0.8rem; cursor: pointer; transition: all 0.15s; }
+  .preset:hover { color: var(--text); border-color: var(--border-focus); }
+  .preset.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .range-sep { flex: 1; }
+  .range label { font-size: 0.74rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; }
+  .range input[type=date] { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font-mono); font-size: 0.8rem; padding: 0.35rem 0.5rem; color-scheme: dark; }
+  :root[data-theme="light"] .range input[type=date] { color-scheme: light; }
+  .btn-apply { background: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); color: var(--accent-ink); font-family: var(--font-body); font-size: 0.8rem; font-weight: 600; padding: 0.4rem 0.95rem; cursor: pointer; }
+  .range-msg { font-size: 0.72rem; color: var(--amber); width: 100%; display: none; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.85rem; }
+  .kpi { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--rail, var(--text-dim)); border-radius: var(--radius); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .kpi-val { font-family: var(--font-display); font-weight: 700; font-size: 2.1rem; letter-spacing: -0.03em; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+  .kpi-val .u { font-size: 1rem; font-weight: 500; color: var(--text-muted); margin-left: 0.15rem; }
+  .kpi-sub { font-size: 0.74rem; color: var(--text-muted); }
+  .delta { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); }
+  .delta.good { color: var(--green); }
+  .delta.bad { color: var(--red); }
+
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1rem; }
+
+  /* Per-agent time bars */
+  .tbars { display: grid; grid-template-columns: minmax(140px, 190px) 1fr 1fr; gap: 0.55rem 1rem; align-items: center; }
+  .tbars .h { font-family: var(--font-mono); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); padding-bottom: 0.2rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.4rem; }
+  .tbars .h i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .tbar { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+  .tbar-track { flex: 1; height: 16px; background: var(--track); border-radius: 4px; overflow: hidden; }
+  .tbar-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+  .tbar-val { width: 58px; text-align: right; font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .tbar-val.na { color: var(--text-dim); font-weight: 400; }
+
+  .age-row { display: grid; grid-template-columns: 78px 1fr 34px; align-items: center; gap: 0.7rem; margin-bottom: 0.6rem; }
+  .age-label { font-size: 0.78rem; color: var(--text-muted); text-align: right; font-family: var(--font-mono); }
+  .age-track { height: 22px; background: var(--track); border-radius: 6px; overflow: hidden; }
+  .age-fill { height: 100%; border-radius: 6px; transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+  .age-count { font-family: var(--font-mono); font-weight: 600; font-size: 0.85rem; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+  .age-foot { margin-top: 0.8rem; font-size: 0.74rem; color: var(--text-muted); }
+
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  th { text-align: left; font-family: var(--font-mono); font-size: 0.66rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); padding: 0 0.6rem 0.6rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 0.6rem; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  th.num, td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  td.num.zero { color: var(--text-dim); }
+  .who { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+  .who-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.84rem; color: var(--text); }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 0.7rem; color: var(--accent); background: var(--tint); border: 1px solid var(--border); overflow: hidden; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  .notes { font-size: 0.72rem; color: var(--text-dim); line-height: 1.6; }
+  .notes .warn { color: var(--amber); }
+  .state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+  .state code { font-family: var(--font-mono); background: var(--tint); border: 1px solid var(--border); border-radius: 6px; padding: 0.1rem 0.4rem; color: var(--text); }
+  .stale { color: var(--amber); }
+  .refresh-btn { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); font-family: var(--font-body); font-size: 0.78rem; padding: 0.35rem 0.8rem; cursor: pointer; }
+  .refresh-btn:hover { color: var(--text); border-color: var(--border-focus); }
+  .loading { opacity: 0.55; pointer-events: none; transition: opacity 0.2s; }
+
+  /* Chart series colours (validated for CVD/contrast against each theme's card surface) */
+  :root { --c-new: #14A89D; --c-closed: #C7831A; }
+  :root[data-theme="light"] { --c-new: #0B8F86; --c-closed: #A86F0A; }
+
+  /* Satisfaction stacked bars */
+  .csat-row { display: grid; grid-template-columns: minmax(130px, 180px) 1fr 54px; gap: 0.8rem; align-items: center; margin-bottom: 0.65rem; }
+  .stack { display: flex; height: 18px; border-radius: 4px; overflow: hidden; background: var(--track); gap: 2px; }
+  .stack span { height: 100%; }
+  .stack-empty { font-size: 0.72rem; color: var(--text-dim); }
+  .csat-val { text-align: right; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; color: var(--text); }
+  .legend { display: flex; gap: 0.9rem; flex-wrap: wrap; font-size: 0.72rem; color: var(--text-muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 0.35rem; vertical-align: -1px; }
+
+  /* Status pills (text + colour, never colour alone) */
+  .pill { display: inline-block; font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600; padding: 0.12rem 0.45rem; border-radius: 999px; }
+  .pill.good { color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
+  .pill.warn { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+  .pill.bad { color: var(--red); background: color-mix(in srgb, var(--red) 14%, transparent); }
+
+  /* Alarm lists */
+  .alist { list-style: none; display: flex; flex-direction: column; gap: 0.45rem; }
+  .alist li { display: grid; grid-template-columns: 52px 1fr auto; gap: 0.6rem; align-items: baseline; font-size: 0.8rem; padding: 0.45rem 0.6rem; background: var(--tint); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .alist .n { font-family: var(--font-mono); color: var(--text-muted); }
+  .alist .s { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .alist .s small { display: block; color: var(--text-muted); font-size: 0.7rem; }
+  .alist .w { font-family: var(--font-mono); font-weight: 600; color: var(--text); white-space: nowrap; }
+  .alist-title { font-size: 0.74rem; color: var(--text-muted); margin: 0.9rem 0 0.45rem; }
+  .alist-title:first-child { margin-top: 0; }
+  .empty-note { font-size: 0.78rem; color: var(--text-dim); padding: 0.4rem 0; }
+
+  /* Trend charts */
+  .chart-scroll { overflow-x: auto; }
+  .chart-scroll svg { display: block; min-width: 560px; width: 100%; height: auto; }
+  .chart-scroll text { font-family: var(--font-mono); font-size: 10px; fill: var(--text-muted); }
+  .chart-scroll .grid-line { stroke: var(--border); stroke-width: 1; }
+  .chart-scroll .hit { fill: transparent; cursor: default; }
+  .chart-scroll .hit:hover { fill: var(--tint); }
+
+  /* Heatmap */
+  .heat { display: grid; gap: 3px; min-width: 420px; }
+  .heat .hl { font-family: var(--font-mono); font-size: 0.66rem; color: var(--text-muted); display: flex; align-items: center; }
+  .heat .hh { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-dim); text-align: center; }
+  .heat .c { height: 22px; border-radius: 3px; }
+  .heat-legend { display: flex; align-items: center; gap: 4px; font-size: 0.68rem; color: var(--text-muted); margin-top: 0.7rem; }
+  .heat-legend span.c { width: 16px; height: 12px; border-radius: 2px; display: inline-block; }
+
+  /* Hover tooltip */
+  #tip { position: fixed; z-index: 3000; pointer-events: none; background: var(--bg-card); border: 1px solid var(--border-focus); border-radius: var(--radius-sm); padding: 0.5rem 0.65rem; font-size: 0.76rem; color: var(--text); box-shadow: 0 6px 20px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.1s; max-width: 260px; line-height: 1.5; }
+  #tip b { font-family: var(--font-display); }
+  #tip .row { display: flex; justify-content: space-between; gap: 1rem; }
+  #tip .row span:last-child { font-family: var(--font-mono); font-weight: 600; }
+
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+  @media (max-width: 1100px) { .grid2.trend2 { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) {
+    .wrap { padding-left: 1rem; padding-right: 1rem; }
+    .header { padding-left: 1rem; }
+    .kpi-val { font-size: 1.7rem; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .tbars { grid-template-columns: 1fr; gap: 0.3rem; }
+    .tbars .h.hname { display: none; }
+    .tbars .who { margin-top: 0.6rem; }
+    .range-sep { display: none; }
+  }
+  /* ===== Agent performance cards ===== */
+  .acards { display: flex; flex-direction: column; gap: 1rem; }
+  .acard { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; animation: cardIn 0.3s ease-out both; }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .acard-head { display: flex; align-items: center; gap: 1rem; padding: 1.1rem 1.4rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .acard-avatar { width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; color: var(--accent); background: var(--tint); border: 1px solid var(--border-focus); overflow: hidden; }
+  .acard-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .acard-name { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; letter-spacing: -0.02em; color: var(--text); }
+  .acard-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.35rem; }
+  .chip { font-size: 0.72rem; color: var(--text-muted); background: var(--tint); border: 1px solid var(--border); border-radius: 999px; padding: 0.18rem 0.6rem; white-space: nowrap; }
+  .chip b { color: var(--text); font-family: var(--font-mono); font-weight: 600; }
+  .chip.alert { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+  .chip.alert b { color: var(--red); }
+  .acard-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.1fr); }
+  .acol { padding: 1.1rem 1.4rem; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
+  .acol + .acol { border-left: 1px solid var(--border); }
+  .acol-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+  .acol-sum { font-size: 0.74rem; color: var(--text-muted); }
+
+  /* Projects */
+  .plist { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; }
+  .plist li { display: flex; flex-direction: column; gap: 0.25rem; }
+  .prow { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; color: var(--text); }
+  .prow .pn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prow .pp { font-family: var(--font-mono); font-weight: 600; flex-shrink: 0; }
+  .pbar { height: 5px; border-radius: 999px; background: var(--track); overflow: hidden; }
+  .pbar i { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+  .pmeta { font-size: 0.68rem; color: var(--text-dim); display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .pmeta .late { color: var(--red); font-weight: 600; }
+  .muted-note { font-size: 0.74rem; color: var(--text-dim); }
+
+  /* Open tickets */
+  .tlist { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
+  .tlist li { display: grid; grid-template-columns: 48px 1fr auto; gap: 0.5rem; align-items: baseline; font-size: 0.78rem; }
+  .tlist .n { font-family: var(--font-mono); color: var(--text-muted); }
+  .tlist .s { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tlist .d { font-family: var(--font-mono); font-weight: 600; color: var(--text-muted); }
+  .tlist .d.old { color: var(--red); }
+  .tlist .d.mid { color: var(--amber); }
+
+  /* Performance metrics */
+  .pmetrics { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .pm { background: var(--tint); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.55rem 0.65rem; display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
+  .pm-l { font-size: 0.68rem; color: var(--text-muted); }
+  .pm-v { font-family: var(--font-mono); font-weight: 600; font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .pm-t { font-size: 0.66rem; color: var(--text-dim); }
+  .pm-t.better { color: var(--green); }
+  .pm-t.worse { color: var(--red); }
+
+  /* Assigned routine tasks, card style */
+  .atasks { border-top: 1px solid var(--border); padding: 1.1rem 1.4rem 1.3rem; display: flex; flex-direction: column; gap: 0.8rem; }
+  .tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.6rem; }
+  .tcard { background: var(--tint); border: 1px solid var(--border); border-left: 3px solid var(--rail, var(--accent)); border-radius: var(--radius-sm); padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+  .tcard-name { font-family: var(--font-display); font-weight: 600; font-size: 0.86rem; line-height: 1.3; color: var(--text); }
+  .tcard-cat { align-self: flex-start; font-size: 0.66rem; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 0.1rem 0.5rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tcard-desc { font-size: 0.72rem; color: var(--text-muted); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .tcard-lvl { display: flex; align-items: center; gap: 0.4rem; font-size: 0.66rem; color: var(--text-dim); margin-top: auto; }
+  .dots { display: inline-flex; gap: 3px; }
+  .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--track); }
+  .dots i.on { background: var(--rail, var(--accent)); }
+
+  @media (max-width: 960px) {
+    .acard-body { grid-template-columns: 1fr; }
+    .acol + .acol { border-left: none; border-top: 1px solid var(--border); }
+  }
+  @media (max-width: 600px) { .acard-head, .acol { padding-left: 1rem; padding-right: 1rem; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Desempeño por agente</h1>
+    <p id="subtitle">Cargando...</p>
+  </div>
+  <div class="nav-links">
+    <a href="index.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      Dashboard
+    </a>
+    <a href="projects.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+      Proyectos
+    </a>
+    <a href="gantt.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+      Gantt
+    </a>
+    <a href="by-leader.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+      Por Líder
+    </a>
+    <a href="leaders.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      Líderes
+    </a>
+    <a href="tech-guardian.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+      Tech Guardian
+    </a>
+    <a href="tareas-rutinarias.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+      Tareas Rutinarias
+    </a>
+    <a href="leader-dashboard.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+      Líder
+    </a>
+    <a href="tickets.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 0 0 6v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3a3 3 0 0 0 0-6V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"></path><line x1="13" y1="5" x2="13" y2="7"></line><line x1="13" y1="11" x2="13" y2="13"></line><line x1="13" y1="17" x2="13" y2="19"></line></svg>
+      Tickets
+    </a>
+    <a href="desempeno.html" class="active">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M7 15l4-4 3 3 5-6"></path></svg>
+      Desempeño
+    </a>
+    <button class="nav-btn" id="btnTheme" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"></button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="panel range" id="rangeBar">
+    <div class="presets" id="presets">
+      <button class="preset" data-p="7">7 días</button>
+      <button class="preset" data-p="30">30 días</button>
+      <button class="preset" data-p="90">90 días</button>
+      <button class="preset" data-p="mes">Este mes</button>
+      <button class="preset" data-p="mesant">Mes anterior</button>
+    </div>
+    <span class="range-sep"></span>
+    <label>Desde <input type="date" id="fDesde"></label>
+    <label>Hasta <input type="date" id="fHasta"></label>
+    <button class="btn-apply" id="btnApply">Aplicar</button>
+    <div class="range-msg" id="rangeMsg"></div>
+  </div>
+  <div id="root" style="display:flex;flex-direction:column;gap:1rem;"><div class="panel state">Cargando proyectos y tickets…</div></div>
+</div>
+
+<script>
+let leaders = [];
+const MAX_DAYS = 92;
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+function normName(s) {
+  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\bbryan\b/g, 'brian').trim();
+}
+function leaderFor(name) { const n = normName(name); return leaders.find(l => normName(l.name) === n); }
+function initials(name) { return (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'; }
+function avatar(name) {
+  const l = leaderFor(name);
+  return `<span class="avatar">${l && l.photo ? `<img src="${esc(l.photo)}" alt="">` : esc(initials(name))}</span>`;
+}
+
+// ── Formatting ──
+function fmtMin(m) {
+  if (m == null) return '—';
+  if (m < 60) return `${Math.round(m)} min`;
+  const h = m / 60;
+  if (h < 48) return `${h.toFixed(1).replace('.0', '')} h`;
+  return `${(h / 24).toFixed(1).replace('.0', '')} d`;
+}
+function fmtHours(h) { return h == null ? '—' : fmtMin(h * 60); }
+// Big-number variant: value + unit separately
+function bigDur(h) {
+  if (h == null) return '—';
+  const s = fmtHours(h); const i = s.lastIndexOf(' ');
+  return `${esc(s.slice(0, i))}<span class="u">${esc(s.slice(i + 1))}</span>`;
+}
+function fmtNum(n) { return n == null ? '—' : Number(n).toLocaleString('es-CO'); }
+function fmtDay(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function delta(cur, prev, { lowerIsBetter = false, neutral = false } = {}) {
+  if (cur == null || prev == null || prev === 0) return '<span class="delta">sin comparación</span>';
+  const pct = ((cur - prev) / prev) * 100;
+  if (Math.abs(pct) < 0.5) return '<span class="delta">= igual que el periodo anterior</span>';
+  const up = pct > 0;
+  const cls = neutral ? '' : ((up !== lowerIsBetter) ? 'good' : 'bad');
+  return `<span class="delta ${cls}">${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}% vs periodo anterior</span>`;
+}
+
+// ── Date range ──
+function isoLocal(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function addDays(iso, n) { const [y, m, d] = iso.split('-').map(Number); return isoLocal(new Date(y, m - 1, d + n)); }
+function daysBetween(a, b) { const p = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); }; return Math.round((p(b) - p(a)) / 86400000); }
+function presetRange(p) {
+  const today = isoLocal(new Date());
+  const yest = addDays(today, -1);
+  if (p === 'mes') return { desde: today.slice(0, 8) + '01', hasta: today };
+  if (p === 'mesant') {
+    const first = today.slice(0, 8) + '01';
+    const lastPrev = addDays(first, -1);
+    return { desde: lastPrev.slice(0, 8) + '01', hasta: lastPrev };
+  }
+  const n = Number(p);
+  return { desde: addDays(yest, -(n - 1)), hasta: yest };
+}
+function rangeFromUrl() {
+  const q = new URLSearchParams(location.search);
+  const ok = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+  if (ok(q.get('desde')) && ok(q.get('hasta'))) return { desde: q.get('desde'), hasta: q.get('hasta') };
+  return presetRange('7');
+}
+let range = rangeFromUrl();
+
+function syncRangeUi() {
+  document.getElementById('fDesde').value = range.desde;
+  document.getElementById('fHasta').value = range.hasta;
+  document.querySelectorAll('.preset').forEach(b => {
+    const r = presetRange(b.dataset.p);
+    b.classList.toggle('on', r.desde === range.desde && r.hasta === range.hasta);
+  });
+}
+function setRange(r) {
+  const msg = document.getElementById('rangeMsg');
+  msg.style.display = 'none';
+  if (!r.desde || !r.hasta) return;
+  if (r.desde > r.hasta) [r.desde, r.hasta] = [r.hasta, r.desde];
+  if (daysBetween(r.desde, r.hasta) + 1 > MAX_DAYS) {
+    r.desde = addDays(r.hasta, -(MAX_DAYS - 1));
+    msg.textContent = `El rango máximo es ${MAX_DAYS} días; se ajustó la fecha inicial.`;
+    msg.style.display = 'block';
+  }
+  range = { desde: r.desde, hasta: r.hasta };
+  history.replaceState(null, '', `?desde=${range.desde}&hasta=${range.hasta}`);
+  syncRangeUi();
+  load();
+}
+document.getElementById('presets').addEventListener('click', e => {
+  const b = e.target.closest('.preset'); if (b) setRange(presetRange(b.dataset.p));
+});
+document.getElementById('btnApply').addEventListener('click', () =>
+  setRange({ desde: document.getElementById('fDesde').value, hasta: document.getElementById('fHasta').value }));
+
+// ── Agent performance cards: projects (dashboard) + open tickets + metrics (FreeScout) ──
+let projects = [];
+let tareas = [];
+const fmtLabPct = (num, den) => den ? Math.round((num / den) * 100) : null;
+
+function leaderPhoto(name) {
+  const l = leaderFor(name);
+  return `<span class="acard-avatar">${l && l.photo ? `<img src="${esc(l.photo)}" alt="">` : esc(initials(name))}</span>`;
+}
+function tasksFor(name) {
+  const n = normName(name);
+  return tareas.filter(t => normName(t.encargado) === n);
+}
+// Expertise 1–5 → rail colour (higher level = more specialised)
+function levelColor(n) { return n >= 4 ? 'var(--amber)' : n >= 3 ? 'var(--accent)' : 'var(--text-muted)'; }
+function projectsFor(name) {
+  const n = normName(name);
+  return projects.filter(p => normName(p.lider) === n);
+}
+// Lower-is-better comparison against the team value
+function vsTeam(v, team, { lowerIsBetter = true, fmt = x => x } = {}) {
+  if (v == null || team == null) return '<span class="pm-t">equipo: —</span>';
+  if (v === team) return `<span class="pm-t">igual al equipo (${esc(fmt(team))})</span>`;
+  const better = lowerIsBetter ? v < team : v > team;
+  return `<span class="pm-t ${better ? 'better' : 'worse'}">${better ? 'mejor' : 'peor'} que el equipo (${esc(fmt(team))})</span>`;
+}
+
+function renderCards(t, q) {
+  const root = document.getElementById('root');
+  const sub = document.getElementById('subtitle');
+  root.classList.remove('loading');
+
+  if (!t.configured) {
+    sub.textContent = 'Integración con FreeScout no configurada';
+    root.innerHTML = '<div class="panel state">Define <code>FREESCOUT_MCP_URL</code> en las variables de entorno.</div>';
+    return;
+  }
+  if (t.error) {
+    sub.textContent = 'Error al consultar FreeScout';
+    root.innerHTML = `<div class="panel state">${esc(t.error)}${t.detail ? `<br><code>${esc(t.detail)}</code>` : ''}<br><br><button class="refresh-btn" onclick="load(true)">Reintentar</button></div>`;
+    return;
+  }
+  if (t.rango && (t.rango.desde !== range.desde || t.rango.hasta !== range.hasta)) {
+    range = { desde: t.rango.desde, hasta: t.rango.hasta };
+    history.replaceState(null, '', `?desde=${range.desde}&hasta=${range.hasta}`);
+    syncRangeUi();
+  }
+
+  const qOk = q && q.configured && !q.error;
+  const qWait = q == null ? 'cargando…' : 'no disponible';
+  const at = new Date(t.fetchedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  sub.innerHTML = `Proyectos y tareas del dashboard + tickets de ${esc(t.buzon)} · ${esc(fmtDay(t.rango.desde))} – ${esc(fmtDay(t.rango.hasta))} · Actualizado ${esc(at)}`;
+  const today = isoLocal(new Date());
+
+  // Team reference values for comparison
+  const team = {
+    cierre: t.periodo.cierre_mediana_h,
+    frt: (() => { const v = t.por_agente.map(a => a.primera_respuesta_mediana_min).filter(x => x != null).sort((a, b) => a - b); return v.length ? v[Math.floor((v.length - 1) / 2)] : null; })(),
+    meta: qOk ? fmtLabPct(q.equipo.primera.cantidad - q.equipo.primera.fuera_de_meta, q.equipo.primera.cantidad) : null,
+    csat: qOk ? fmtLabPct(q.equipo.calificaciones.excelente, q.equipo.calificaciones.excelente + q.equipo.calificaciones.regular + q.equipo.calificaciones.mala) : null,
+  };
+  const qBy = new Map(qOk ? q.agentes.map(a => [a.name, a]) : []);
+
+  const cards = t.por_agente.map(a => {
+    const qa = qBy.get(a.name);
+    const ps = projectsFor(a.name);
+    const active = ps.filter(p => (Number(p.pct) || 0) < 100);
+    const done = ps.length - active.length;
+    const late = active.filter(p => p.fechaFin && p.fechaFin < today);
+    const avg = active.length ? Math.round(active.reduce((s, p) => s + (Number(p.pct) || 0), 0) / active.length) : null;
+    const hours = ps.reduce((s, p) => s + (Number(p.hours) || 0), 0);
+    const tk = a.tickets_abiertos || [];
+    const old = tk.filter(x => x.dias > 7).length;
+    const cal = qa ? qa.calificaciones : null;
+    const calN = cal ? cal.excelente + cal.regular + cal.mala : 0;
+    const csat = cal ? fmtLabPct(cal.excelente, calN) : null;
+    const meta = qa ? fmtLabPct(qa.primera.cantidad - qa.primera.fuera_de_meta, qa.primera.cantidad) : null;
+
+    const projHtml = ps.length ? `
+      <ul class="plist">${active.sort((x, y) => (x.fechaFin || '9').localeCompare(y.fechaFin || '9')).map(p => {
+        const pct = Math.max(0, Math.min(100, Number(p.pct) || 0));
+        const isLate = p.fechaFin && p.fechaFin < today;
+        return `<li>
+          <div class="prow"><span class="pn" title="${esc(p.name)}">${esc(p.name)}</span><span class="pp">${pct}%</span></div>
+          <div class="pbar"><i style="width:${pct}%"></i></div>
+          <div class="pmeta">${p.fechaFin ? `<span class="${isLate ? 'late' : ''}">${isLate ? 'Vencido · ' : 'Entrega '}${esc(fmtDay(p.fechaFin))}</span>` : '<span>Sin fecha de entrega</span>'}${p.dep ? `<span>${esc(p.dep)}</span>` : ''}</div>
+        </li>`;
+      }).join('')}</ul>
+      ${done ? `<div class="muted-note">${done} completado${done === 1 ? '' : 's'}${hours ? ` · ${fmtNum(hours)} h ahorradas en total` : ''}</div>` : (hours ? `<div class="muted-note">${fmtNum(hours)} h ahorradas</div>` : '')}`
+      : '<div class="muted-note">Sin proyectos asignados en el dashboard.</div>';
+
+    const tkHtml = tk.length ? `<ul class="tlist">${tk.slice(0, 8).map(x => `<li>
+        <span class="n">#${esc(x.numero)}</span>
+        <span class="s" title="${esc(x.asunto)}">${esc(x.asunto)}</span>
+        <span class="d ${x.dias > 7 ? 'old' : x.dias > 3 ? 'mid' : ''}">${x.dias} d</span></li>`).join('')}</ul>
+      ${tk.length > 8 ? `<div class="muted-note">y ${tk.length - 8} más</div>` : ''}`
+      : '<div class="muted-note">Sin tickets abiertos.</div>';
+
+    const ts = tasksFor(a.name).slice().sort((x, y) =>
+      (x.categoria || '').localeCompare(y.categoria || '', 'es') || (y.expertisePoints || 0) - (x.expertisePoints || 0) || (x.nombre || '').localeCompare(y.nombre || '', 'es'));
+    const tsCats = new Set(ts.map(x => x.categoria).filter(Boolean)).size;
+    const tasksHtml = `<div class="atasks">
+      <div class="acol-head"><span class="eyebrow">Tareas asignadas · ${ts.length}</span><span class="acol-sum">${ts.length ? `${tsCats} categoría${tsCats === 1 ? '' : 's'} · <a href="tareas-rutinarias.html" style="color:var(--accent);text-decoration:none">Ver en Tareas Rutinarias →</a>` : ''}</span></div>
+      ${ts.length ? `<div class="tgrid">${ts.map(x => {
+        const lvl = Math.max(1, Math.min(5, Number(x.expertisePoints) || 1));
+        return `<div class="tcard" style="--rail:${levelColor(lvl)}">
+          <div class="tcard-name">${esc(x.nombre)}</div>
+          ${x.categoria ? `<span class="tcard-cat" title="${esc(x.categoria)}">${esc(x.categoria)}</span>` : ''}
+          ${x.descripcion ? `<div class="tcard-desc" title="${esc(x.descripcion)}">${esc(x.descripcion)}</div>` : ''}
+          <div class="tcard-lvl"><span class="dots">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= lvl ? 'on' : ''}"></i>`).join('')}</span>Nivel de experticia ${lvl}/5</div>
+        </div>`;
+      }).join('')}</div>` : '<div class="muted-note">Sin tareas rutinarias asignadas.</div>'}
+    </div>`;
+
+    const pm = (label, val, cmp) => `<div class="pm"><span class="pm-l">${label}</span><span class="pm-v">${val}</span>${cmp || ''}</div>`;
+    const perfHtml = `<div class="pmetrics">
+      ${pm('Cerrados', fmtNum(a.cerrados), `<span class="pm-t">en el rango</span>`)}
+      ${pm('Cierre (mediana)', fmtHours(a.cierre_mediana_h), vsTeam(a.cierre_mediana_h, team.cierre, { fmt: fmtHours }))}
+      ${pm('1ª respuesta (mediana)', fmtMin(a.primera_respuesta_mediana_min), vsTeam(a.primera_respuesta_mediana_min, team.frt, { fmt: fmtMin }))}
+      ${pm('1ª resp. en meta', meta == null ? '—' : `${meta}%`, qa ? (meta == null ? '<span class="pm-t">sin respuestas medidas</span>' : vsTeam(meta, team.meta, { lowerIsBetter: false, fmt: v => v + '%' })) : `<span class="pm-t">${qWait}</span>`)}
+      ${pm('Satisfacción', csat == null ? '—' : `${csat}%`, qa ? `<span class="pm-t">${calN} calificaci${calN === 1 ? 'ón' : 'ones'}${cal && cal.mala ? ` · ${cal.mala} mala${cal.mala === 1 ? '' : 's'}` : ''}</span>` : `<span class="pm-t">${qWait}</span>`)}
+      ${pm('Cerrados sin respuesta', qa ? fmtNum(qa.cerrados_sin_respuesta) : '—', qa && qa.al_vuelo ? `<span class="pm-t">${qa.al_vuelo} casos al vuelo</span>` : '')}
+    </div>`;
+
+    return `<article class="acard">
+      <div class="acard-head">
+        ${leaderPhoto(a.name)}
+        <div>
+          <div class="acard-name">${esc(a.name)}</div>
+          <div class="acard-chips">
+            <span class="chip"><b>${active.length}</b> proyecto${active.length === 1 ? '' : 's'} activo${active.length === 1 ? '' : 's'}</span>
+            ${late.length ? `<span class="chip alert"><b>${late.length}</b> vencido${late.length === 1 ? '' : 's'}</span>` : ''}
+            <span class="chip"><b>${tk.length}</b> ticket${tk.length === 1 ? '' : 's'} abierto${tk.length === 1 ? '' : 's'}</span>
+            <span class="chip"><b>${ts.length}</b> tarea${ts.length === 1 ? '' : 's'}</span>
+            ${old ? `<span class="chip alert"><b>${old}</b> con más de 7 d</span>` : ''}
+            ${csat != null ? `<span class="chip">Satisfacción <b>${csat}%</b></span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="acard-body">
+        <div class="acol">
+          <div class="acol-head"><span class="eyebrow">Proyectos</span><span class="acol-sum">${avg == null ? '' : `Avance promedio ${avg}%`}</span></div>
+          ${projHtml}
+        </div>
+        <div class="acol">
+          <div class="acol-head"><span class="eyebrow">Tickets abiertos</span><span class="acol-sum">más antiguos primero</span></div>
+          ${tkHtml}
+        </div>
+        <div class="acol">
+          <div class="acol-head"><span class="eyebrow">Desempeño</span><span class="acol-sum">${esc(fmtDay(t.rango.desde))} – ${esc(fmtDay(t.rango.hasta))}</span></div>
+          ${perfHtml}
+        </div>
+      </div>
+      ${tasksHtml}
+    </article>`;
+  }).join('');
+
+  root.innerHTML = `<div class="acards">${cards}</div>
+    <div class="notes" style="margin-top:1rem">
+      Proyectos y tareas: los del dashboard cuyo líder o encargado coincide con el agente. Tickets: buzón ${esc(t.buzon)}.
+      Cierre y 1ª respuesta en horas calendario; "1ª resp. en meta" usa horas laborales${qOk && q.metas ? ` (≤ ${esc(q.metas.primera_respuesta)} h)` : ''}.
+      Satisfacción y meta vienen del reporte semanal de FreeScout${qOk && q.cobertura.desde < q.rango.desde ? ` (cubre ${esc(fmtDay(q.cobertura.desde))} – ${esc(fmtDay(q.cobertura.hasta))})` : ''}.
+      ${qOk ? '' : (q && q.error ? `<span class="warn">Satisfacción y metas no disponibles: ${esc(q.error)}</span>` : '')}
+      ${t.lista_parcial ? '<br><span class="warn">La lista de tickets puede estar incompleta.</span>' : ''}
+    </div>`;
+}
+
+let lastTickets = null;
+async function load(force = false) {
+  const root = document.getElementById('root');
+  root.classList.add('loading');
+  const qs = new URLSearchParams({ desde: range.desde, hasta: range.hasta });
+  if (force) qs.set('refresh', '1');
+  try {
+    const [t, p, tr] = await Promise.all([
+      fetch('/api/tickets?' + qs).then(r => r.json()),
+      fetch('/api/projects').then(r => r.json()).catch(() => []),
+      fetch('/api/tareas-rutinarias').then(r => r.json()).catch(() => []),
+    ]);
+    projects = Array.isArray(p) ? p : [];
+    tareas = Array.isArray(tr) ? tr : [];
+    lastTickets = t;
+    renderCards(t, null); // first paint without the (slower) weekly report
+    if (t.configured && !t.error) {
+      const q = await fetch('/api/tickets/calidad?' + qs).then(r => r.json()).catch(() => ({ error: 'Sin conexión' }));
+      if (lastTickets === t) renderCards(t, q);
+    }
+  } catch {
+    renderCards({ configured: true, error: 'Sin conexión con el servidor del dashboard.' }, null);
+  }
+}
+
+async function loadLeaders() {
+  try { leaders = await fetch('/api/leaders').then(r => r.json()); } catch {}
+}
+
+// ── Theme toggle ──
+function themeIcon(t) {
+  return t === 'light'
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>'
+    : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+}
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('theme', t); } catch (e) {}
+  const b = document.getElementById('btnTheme');
+  if (b) b.innerHTML = themeIcon(t);
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  applyTheme(cur === 'light' ? 'dark' : 'light');
+}
+applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+
+syncRangeUi();
+loadLeaders().then(() => load());
+setInterval(() => load(), 5 * 60 * 1000);
+</script>
+</body>
+</html>
