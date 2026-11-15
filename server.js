@@ -481,9 +481,9 @@ async function withFreescoutMcp(fn) {
 
 // Small TTL cache with in-flight de-duplication and last-good fallback
 const fsCache = new Map(); // key → { data, at, inflight }
-async function cached(key, loader, force) {
+async function cached(key, loader, force, ttl = TICKETS_TTL_MS) {
   const e = fsCache.get(key) || {};
-  if (!force && e.data && Date.now() - e.at < TICKETS_TTL_MS) return { data: e.data, at: e.at, stale: false };
+  if (!force && e.data && Date.now() - e.at < ttl) return { data: e.data, at: e.at, stale: false };
   if (!e.inflight) {
     e.inflight = loader()
       .then(data => { e.data = data; e.at = Date.now(); })
@@ -542,16 +542,54 @@ function periodStats(tickets, desde, hasta) {
   };
 }
 
+// Range from ?desde&hasta — default = last 7 complete days, never in the future, at most MAX_RANGE_DAYS
+function parseRange(q) {
+  const today = todayLocal();
+  let hasta = ISO_DAY.test(q.hasta || '') ? q.hasta : addDays(today, -1);
+  let desde = ISO_DAY.test(q.desde || '') ? q.desde : addDays(hasta, -6);
+  if (desde > hasta) [desde, hasta] = [hasta, desde];
+  if (hasta > today) hasta = today;
+  if (desde > hasta) desde = hasta;
+  if (daysBetween(desde, hasta) + 1 > MAX_RANGE_DAYS) desde = addDays(hasta, -(MAX_RANGE_DAYS - 1));
+  return { today, desde, hasta };
+}
+
+// Monday-start weeks: 12 weeks ending with the week that contains `hasta`
+const TREND_WEEKS = 12;
+function dayOfWeek(iso) { return (new Date(iso + 'T00:00:00Z').getUTCDay() + 6) % 7; } // Mon=0 … Sun=6
+function weeklyTrend(tickets, hasta) {
+  const lastMonday = addDays(hasta, -dayOfWeek(hasta));
+  const firstMonday = addDays(lastMonday, -7 * (TREND_WEEKS - 1));
+  const weeks = [];
+  for (let i = 0; i < TREND_WEEKS; i++) {
+    const ini = addDays(firstMonday, 7 * i), fin = addDays(ini, 6);
+    const end = (fin > hasta ? hasta : fin) + ' 23:59';
+    const inW = d => d && d.slice(0, 10) >= ini && d.slice(0, 10) <= fin && d.slice(0, 10) <= hasta;
+    const closed = tickets.filter(t => t.agent && t.estado === 'cerrado' && inW(t.cerrado));
+    weeks.push({
+      semana: ini,
+      parcial: fin > hasta,
+      nuevos: tickets.filter(t => inW(t.creado)).length,
+      cerrados: closed.length,
+      cierre_mediana_h: round1(median(closed.map(t => hoursBetween(t.creado, t.cerrado)).filter(h => h >= 0))),
+      // Open at the end of the week: created by then and not yet closed by then
+      backlog: tickets.filter(t => t.creado <= end && !(t.estado === 'cerrado' && t.cerrado && t.cerrado <= end)).length,
+    });
+  }
+  // Arrival heatmap over the same 12 weeks: [weekday][hour]
+  const heat = Array.from({ length: 7 }, () => Array(24).fill(0));
+  for (const t of tickets) {
+    const day = t.creado && t.creado.slice(0, 10);
+    if (!day || day < firstMonday || day > hasta) continue;
+    heat[dayOfWeek(day)][Number(t.creado.slice(11, 13)) || 0]++;
+  }
+  return { desde: firstMonday, hasta, semanas: weeks, mapa_calor: heat };
+}
+
 app.get('/api/tickets', async (req, res) => {
   if (!FREESCOUT_MCP_URL) return res.json({ configured: false });
 
-  // Range: default = last 7 complete days
-  const today = todayLocal();
-  let hasta = ISO_DAY.test(req.query.hasta || '') ? req.query.hasta : addDays(today, -1);
-  let desde = ISO_DAY.test(req.query.desde || '') ? req.query.desde : addDays(hasta, -6);
-  if (desde > hasta) [desde, hasta] = [hasta, desde];
-  if (hasta > today) hasta = today;
-  if (daysBetween(desde, hasta) + 1 > MAX_RANGE_DAYS) desde = addDays(hasta, -(MAX_RANGE_DAYS - 1));
+  const { today, desde, hasta } = parseRange(req.query);
   const span = daysBetween(desde, hasta) + 1;
   const prevHasta = addDays(desde, -1), prevDesde = addDays(prevHasta, -(span - 1));
   const force = req.query.refresh === '1';
@@ -613,6 +651,7 @@ app.get('/api/tickets', async (req, res) => {
     };
   });
   delete cur._closed; delete prev._closed;
+  const tendencia = weeklyTrend(tickets, hasta);
 
   const at = Math.min(listR.value.at, metR.status === 'fulfilled' ? metR.value.at : Infinity);
   res.json({
@@ -632,6 +671,129 @@ app.get('/api/tickets', async (req, res) => {
     periodo_anterior: prev,
     por_agente,
     primera_respuesta_disponible: !!met,
+    tendencia,
+  });
+});
+
+// ── Satisfaction ratings and business-hours goals (reporte_agentes) ──
+// reporte_agentes only covers 7-day windows ending at `hasta`, so the range is covered with
+// consecutive windows ending at the range end; the first one may start a few days before `desde`.
+// It is not filtered by mailbox: it covers each agent's work in every mailbox.
+function uniqueBy(items, key) {
+  const seen = new Set();
+  return items.filter(x => { const k = key(x); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) { const i = next++; out[i] = await fn(items[i], i); }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
+app.get('/api/tickets/calidad', async (req, res) => {
+  if (!FREESCOUT_MCP_URL) return res.json({ configured: false });
+  const { today, desde, hasta } = parseRange(req.query);
+  const force = req.query.refresh === '1';
+
+  // Window ends: hasta, hasta-7, … until a window reaches back to `desde`
+  const ends = [];
+  let end = hasta;
+  do { ends.push(end); end = addDays(end, -7); } while (addDays(ends[ends.length - 1], -6) > desde);
+  const yesterday = addDays(today, -1);
+
+  let reports;
+  try {
+    reports = await mapLimit(ends, 4, end => cached(
+      `rep:${end}`,
+      () => withFreescoutMcp(call => call('reporte_agentes', { hasta: end })),
+      force,
+      // Closed past weeks barely change; keep them longer
+      end < yesterday ? 6 * 60 * 60 * 1000 : TICKETS_TTL_MS,
+    ));
+  } catch (err) {
+    const detail = scrubSecrets(err && err.message);
+    console.error('FreeScout reporte_agentes error:', detail);
+    return res.json({ configured: true, error: 'No se pudo consultar el reporte de agentes.', detail });
+  }
+
+  const data = reports.map(r => r.data);
+  const latest = data[0];
+  const blank = () => ({
+    calificaciones: { excelente: 0, regular: 0, mala: 0 }, malas: [],
+    primera: { cantidad: 0, fuera_de_meta: 0 }, siguientes: { cantidad: 0, fuera_de_meta: 0 },
+    cerrados: 0, cerrados_sin_respuesta: 0, al_vuelo: 0, peores: [],
+  });
+  const byAgent = new Map(FS_AGENTS.map(n => [n, blank()]));
+
+  for (const rep of data) {
+    for (const a of rep.agentes || []) {
+      const name = agentKeys.get(normAgent(a.agente));
+      if (!name) continue;
+      const acc = byAgent.get(name);
+      const c = a.calificaciones || {};
+      acc.calificaciones.excelente += c.excelente || 0;
+      acc.calificaciones.regular += c.regular || 0;
+      acc.calificaciones.mala += c.mala || 0;
+      for (const m of c.detalle_malas || []) acc.malas.push({ ...m, agente: name });
+      acc.primera.cantidad += a.primera_respuesta?.cantidad || 0;
+      acc.primera.fuera_de_meta += a.primera_respuesta?.fuera_de_meta || 0;
+      acc.siguientes.cantidad += a.respuestas_siguientes?.cantidad || 0;
+      acc.siguientes.fuera_de_meta += a.respuestas_siguientes?.fuera_de_meta || 0;
+      acc.cerrados += a.cerrados || 0;
+      acc.cerrados_sin_respuesta += a.cerrados_sin_respuesta || 0;
+      acc.al_vuelo += a.al_vuelo_registrados || 0;
+      for (const w of a.primera_respuesta?.peores || []) acc.peores.push({ ...w, agente: name });
+    }
+  }
+
+  const agentes = FS_AGENTS.map(name => {
+    const a = byAgent.get(name);
+    a.peores = a.peores.sort((x, y) => y.horas_laborales - x.horas_laborales).slice(0, 3);
+    return { name, ...a };
+  });
+  const sum = f => agentes.reduce((s, a) => s + f(a), 0);
+
+  // Open alarms come from the most recent window only (they describe the current state)
+  const alarmas = { sin_contestar: [], sin_primera_respuesta: [] };
+  for (const a of latest.agentes || []) {
+    const name = agentKeys.get(normAgent(a.agente));
+    if (!name) continue;
+    for (const t of a.sin_contestar?.tickets || []) alarmas.sin_contestar.push({ ...t, agente: name });
+    for (const t of a.sin_primera_respuesta?.tickets || []) alarmas.sin_primera_respuesta.push({ ...t, agente: name });
+  }
+  const byWait = (x, y) => (y.espera_horas_laborales || 0) - (x.espera_horas_laborales || 0);
+  alarmas.sin_contestar.sort(byWait);
+  alarmas.sin_primera_respuesta.sort(byWait);
+
+  res.json({
+    configured: true,
+    stale: reports.some(r => r.stale),
+    fetchedAt: new Date(Math.min(...reports.map(r => r.at))).toISOString(),
+    rango: { desde, hasta },
+    cobertura: { desde: addDays(ends[ends.length - 1], -6), hasta, semanas: ends.length },
+    modulo_calificaciones: !!latest.modulo_calificaciones,
+    metas: latest.metas_horas_laborales || null,
+    jornada: latest.jornada || null,
+    equipo: {
+      calificaciones: {
+        excelente: sum(a => a.calificaciones.excelente),
+        regular: sum(a => a.calificaciones.regular),
+        mala: sum(a => a.calificaciones.mala),
+      },
+      cerrados: sum(a => a.cerrados),
+      primera: { cantidad: sum(a => a.primera.cantidad), fuera_de_meta: sum(a => a.primera.fuera_de_meta) },
+      siguientes: { cantidad: sum(a => a.siguientes.cantidad), fuera_de_meta: sum(a => a.siguientes.fuera_de_meta) },
+      cerrados_sin_respuesta: sum(a => a.cerrados_sin_respuesta),
+      al_vuelo: sum(a => a.al_vuelo),
+    },
+    agentes,
+    malas: uniqueBy(agentes.flatMap(a => a.malas), m => `${m.numero ?? m.ticket}:${m.agente}`),
+    peores_primera: uniqueBy(agentes.flatMap(a => a.peores).sort((x, y) => y.horas_laborales - x.horas_laborales), w => w.numero).slice(0, 5),
+    alarmas,
+    alarmas_fecha: latest.generado || null,
   });
 });
 
