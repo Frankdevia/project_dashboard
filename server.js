@@ -491,7 +491,8 @@ app.get('/api/tickets', async (req, res) => {
     } catch (err) {
       const detail = scrubSecrets(err && err.message);
       console.error('FreeScout MCP error:', detail);
-      if (!ticketsCache) return res.status(502).json({ configured: true, error: 'No se pudo consultar FreeScout.', detail });
+      // 200 on purpose: EasyPanel's proxy replaces 502 bodies with its own HTML error page
+      if (!ticketsCache) return res.json({ configured: true, error: 'No se pudo consultar FreeScout.', detail });
       // Serve the last good data, flagged as stale
       return res.json({ configured: true, stale: true, fetchedAt: new Date(ticketsCache.fetchedAt).toISOString(), ...ticketsCache.data });
     }
