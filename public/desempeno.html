@@ -374,6 +374,27 @@
   /* Assigned routine tasks, card style */
   .atasks { border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem 1.3rem; display: flex; flex-direction: column; gap: 0.8rem; }
   .atasks.collapsed .tasks-body { display: none; }
+  /* Alarms */
+  .alarms-panel { display: flex; flex-direction: column; gap: 0.7rem; border-left: 3px solid var(--red); }
+  .alarms-panel.collapsed .alarms-body { display: none; }
+  .alarms-body { display: flex; flex-direction: column; gap: 0.6rem; }
+  .aalarms, .agoals { border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem 1.2rem; display: flex; flex-direction: column; gap: 0.7rem; }
+  .alarm-list { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; max-height: 360px; overflow-y: auto; scrollbar-width: thin; }
+  .alarm-list li { display: grid; grid-template-columns: 62px 130px minmax(0, 1fr) auto; gap: 0.6rem; align-items: baseline; padding: 0.45rem 0.6rem; border: 1px solid var(--border); border-left: 3px solid var(--sev, var(--text-dim)); border-radius: var(--radius-sm); background: var(--tint); font-size: 0.8rem; }
+  .alarm-list li.al-critica { --sev: var(--red); }
+  .alarm-list li.al-alta { --sev: var(--amber); }
+  .alarm-list li.al-media { --sev: var(--text-muted); }
+  .al-sev { font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sev); }
+  .al-type { font-size: 0.72rem; color: var(--text-muted); }
+  .al-main { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .al-main .n { font-family: var(--font-mono); color: var(--text-muted); }
+  .al-main small { display: block; font-size: 0.66rem; color: var(--text-dim); }
+  .al-wait { font-family: var(--font-mono); font-weight: 600; color: var(--sev); white-space: nowrap; }
+  @media (max-width: 700px) { .alarm-list li { grid-template-columns: 1fr auto; } .al-sev, .al-type { grid-column: 1 / -1; } }
+  /* Goals */
+  .gtable .g-num { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
+  .gtable .tt-name { width: 26%; }
+  .gtable .pill { white-space: nowrap; }
   .atasks.collapsed { padding-bottom: 1.1rem; }
   .tasks-toggle { margin-left: 0.6rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-family: var(--font-body); font-size: 0.72rem; padding: 0.2rem 0.7rem; cursor: pointer; }
   .tasks-toggle:hover { color: var(--text); border-color: var(--border-focus); }
@@ -553,6 +574,10 @@ let selectedAgent = new URLSearchParams(location.search).get('agente') || null;
 // Filters persist across agent tabs
 let projFilter = 'todos';
 let tasksOpen = true;
+let alarmsOpen = true;
+let alarmFilter = 'todas';
+let alarms = null; // /api/tickets/alarmas
+try { alarmsOpen = localStorage.getItem('desempeno.alarmas') !== '0'; } catch (e) {}
 try { tasksOpen = localStorage.getItem('desempeno.tareas') !== '0'; } catch (e) {}
 let tkFilter = 'todos';
 // Same stages as the rest of the dashboard
@@ -625,6 +650,130 @@ function tasksFor(name) {
 }
 // Expertise 1–5 → rail colour (higher level = more specialised)
 function levelColor(n) { return n >= 4 ? 'var(--amber)' : n >= 3 ? 'var(--accent)' : 'var(--text-muted)'; }
+// ── Alarms ──
+const ALARM_TYPES = [
+  ['sin_primera_respuesta', 'Sin 1ª respuesta'],
+  ['sin_contestar', 'Sin contestar'],
+  ['sin_responsable', 'Sin responsable'],
+  ['demorados', 'Resolución demorada'],
+];
+const SEV_ORDER = { critica: 0, alta: 1, media: 2 };
+const SEV_LABEL = { critica: 'Crítica', alta: 'Alta', media: 'Media' };
+function flatAlarms(agent) {
+  if (!alarms || alarms.error || !alarms.configured) return [];
+  const out = [];
+  for (const [key, label] of ALARM_TYPES) {
+    for (const x of alarms[key] || []) {
+      if (agent && x.agente !== agent) continue;
+      out.push({ ...x, tipo: key, tipoLabel: label });
+    }
+  }
+  return out.sort((a, b) => (SEV_ORDER[a.severidad] - SEV_ORDER[b.severidad])
+    || ((b.espera_horas_laborales ?? -1) - (a.espera_horas_laborales ?? -1)) || ((b.dias ?? 0) - (a.dias ?? 0)));
+}
+function alarmWait(x) {
+  if (x.espera_horas_laborales != null) return `${Number(x.espera_horas_laborales).toFixed(1).replace('.0', '')} h lab.`;
+  return x.dias != null ? `${x.dias} d` : '—';
+}
+function alarmRows(list, showAgent) {
+  return `<ul class="alarm-list">${list.map(x => `
+    <li class="tk-row al-${esc(x.severidad)}" data-ticket="${esc(x.numero)}" tabindex="0" role="button" aria-label="Ver ticket #${esc(x.numero)}">
+      <span class="al-sev" title="Severidad ${esc(SEV_LABEL[x.severidad] || x.severidad)}">${esc(SEV_LABEL[x.severidad] || x.severidad)}</span>
+      <span class="al-type">${esc(x.tipoLabel)}</span>
+      <span class="al-main"><span class="n">#${esc(x.numero)}</span> ${esc(x.asunto || '')}${showAgent ? `<small>${esc(x.agente)}${x.estado ? ' · ' + esc(x.estado) : ''}</small>` : (x.estado ? `<small>${esc(x.estado)}</small>` : '')}</span>
+      <span class="al-wait">${esc(alarmWait(x))}</span>
+    </li>`).join('')}</ul>`;
+}
+function alarmChips(list) {
+  const counts = { todas: list.length };
+  for (const x of list) counts[x.tipo] = (counts[x.tipo] || 0) + 1;
+  return `<div class="fchips">${[['todas', 'Todas'], ...ALARM_TYPES].map(([k, label]) =>
+    `<button class="fchip${k === alarmFilter ? ' on' : ''}" data-af="${k}"${counts[k] || k === 'todas' ? '' : ' disabled'}>${label} <span>${counts[k] || 0}</span></button>`).join('')}</div>`;
+}
+function teamAlarmsHtml() {
+  if (!alarms) return '<section class="panel alarms-panel"><div class="muted-note">Cargando alarmas…</div></section>';
+  if (alarms.error) return `<section class="panel alarms-panel"><div class="muted-note">Alarmas no disponibles: ${esc(alarms.error)}</div></section>`;
+  const all = flatAlarms(null);
+  const crit = all.filter(x => x.severidad === 'critica').length;
+  const shown = all.filter(x => alarmFilter === 'todas' || x.tipo === alarmFilter);
+  return `<section class="panel alarms-panel${alarmsOpen ? '' : ' collapsed'}">
+    <div class="acol-head">
+      <span class="eyebrow">Alarmas del equipo · ${all.length}</span>
+      <span class="acol-sum">${crit ? `<b style="color:var(--red)">${crit} crítica${crit === 1 ? '' : 's'}</b> · ` : ''}más graves primero
+        <button class="tasks-toggle alarms-toggle" aria-expanded="${alarmsOpen}">${alarmsOpen ? 'Ocultar' : 'Mostrar'}</button></span>
+    </div>
+    <div class="alarms-body">
+      ${alarmChips(all)}
+      ${shown.length ? alarmRows(shown, true) : '<div class="muted-note">Sin alarmas de este tipo.</div>'}
+      <div class="muted-note">Resolución demorada: abiertos más de ${alarms.umbral_dias} días (crítica desde ${alarms.umbral_critico_dias}). Sin 1ª respuesta y sin contestar: espera en horas laborales frente a la meta${alarms.metas ? ` (${alarms.metas.primera_respuesta} h y ${alarms.metas.respuestas_siguientes} h; crítica al doble)` : ''}.${alarms.reporte_disponible ? '' : ' <span class="warn">El reporte de FreeScout no respondió: faltan las alarmas de respuesta.</span>'}</div>
+    </div>
+  </section>`;
+}
+
+// ── Goals derived from how the agent handles tickets ──
+function stepTarget(actual, goal) { return actual >= goal ? goal : Math.min(goal, Math.ceil((actual + (goal - actual) / 2) / 5) * 5); }
+function buildGoals(a, qa, team, myAlarms, metas) {
+  const g = [];
+  const status = (ok, near) => ok ? 'cumple' : near ? 'progreso' : 'atencion';
+  const meta1 = metas ? metas.primera_respuesta : 4, meta2 = metas ? metas.respuestas_siguientes : 8;
+  if (qa && qa.primera.cantidad) {
+    const v = Math.round(((qa.primera.cantidad - qa.primera.fuera_de_meta) / qa.primera.cantidad) * 100);
+    g.push({ ind: `1ª respuesta en ≤ ${meta1} h laborales`, actual: `${v}%`, meta: v >= 90 ? 'Mantener ≥ 90%' : `≥ ${stepTarget(v, 90)}%`, st: status(v >= 90, v >= 70),
+      why: `${qa.primera.fuera_de_meta} de ${qa.primera.cantidad} primeras respuestas superaron la meta.${v < 90 ? ' La meta intermedia cierra la mitad de la brecha hacia 90%.' : ''}` });
+  }
+  if (qa && qa.siguientes.cantidad) {
+    const v = Math.round(((qa.siguientes.cantidad - qa.siguientes.fuera_de_meta) / qa.siguientes.cantidad) * 100);
+    g.push({ ind: `Respuestas siguientes en ≤ ${meta2} h laborales`, actual: `${v}%`, meta: v >= 90 ? 'Mantener ≥ 90%' : `≥ ${stepTarget(v, 90)}%`, st: status(v >= 90, v >= 70),
+      why: `${qa.siguientes.fuera_de_meta} de ${qa.siguientes.cantidad} seguimientos tardaron más de ${meta2} h.` });
+  }
+  if (a.cierre_mediana_h != null && team.cierre != null) {
+    const ok = a.cierre_mediana_h <= team.cierre;
+    g.push({ ind: 'Tiempo de cierre (mediana)', actual: fmtHours(a.cierre_mediana_h), meta: ok ? `Mantener ≤ ${fmtHours(team.cierre)}` : `≤ ${fmtHours(team.cierre)}`, st: status(ok, a.cierre_mediana_h <= team.cierre * 1.5),
+      why: `Su mediana frente a ${fmtHours(team.cierre)} del equipo${a.cierre_promedio_h != null && a.cierre_promedio_h > a.cierre_mediana_h * 2 ? '; el promedio es mucho mayor, hay casos largos que conviene revisar' : ''}.` });
+  }
+  const slow = myAlarms.filter(x => x.tipo === 'demorados');
+  {
+    const n = slow.length, oldest = slow.length ? Math.max(...slow.map(x => x.dias || 0)) : null;
+    g.push({ ind: `Tickets abiertos más de ${alarms && alarms.umbral_dias || 7} días`, actual: String(n), meta: n <= 2 ? '0' : `≤ ${Math.floor(n / 2)}`, st: status(n === 0, n <= 2),
+      why: n ? `El más antiguo lleva ${oldest} días. ${n > 2 ? 'Reducir a la mitad en el próximo periodo.' : 'Cerrar o mover a pendiente con fecha.'}` : 'Sin tickets estancados.' });
+  }
+  const waiting = myAlarms.filter(x => x.tipo === 'sin_primera_respuesta' || x.tipo === 'sin_contestar').length;
+  if (alarms && alarms.reporte_disponible) {
+    g.push({ ind: 'Tickets esperando respuesta ahora', actual: String(waiting), meta: '0', st: status(waiting === 0, false),
+      why: waiting ? 'Hay solicitantes esperando una primera respuesta o un seguimiento.' : 'Nadie está esperando respuesta.' });
+  }
+  if (qa) {
+    const n = qa.cerrados_sin_respuesta, tot = qa.cerrados || 0;
+    g.push({ ind: 'Cerrados sin responder al usuario', actual: tot ? `${n} de ${tot}` : String(n), meta: '0', st: status(n === 0, tot && n / tot <= 0.1),
+      why: n ? 'Cerrar sin escribir impide que el usuario confirme la solución y que califique el servicio.' : 'Siempre responde antes de cerrar.' });
+    const c = qa.calificaciones, cn = c.excelente + c.regular + c.mala;
+    if (cn < 5) g.push({ ind: 'Calificaciones recibidas', actual: String(cn), meta: '≥ 5 en el periodo', st: 'progreso',
+      why: 'Muy pocas calificaciones para medir la satisfacción; pedir al usuario que califique al cerrar.' });
+    else {
+      const v = Math.round((c.excelente / cn) * 100);
+      g.push({ ind: 'Satisfacción ("excelente")', actual: `${v}%`, meta: v >= 90 ? 'Mantener ≥ 90%' : `≥ ${stepTarget(v, 90)}%`, st: status(v >= 90, v >= 75),
+        why: c.mala ? `${c.mala} calificación${c.mala === 1 ? '' : 'es'} mala${c.mala === 1 ? '' : 's'}: revisar esos casos con el agente.` : `${cn} calificaciones en el periodo.` });
+    }
+  }
+  return g;
+}
+const GOAL_ST = { cumple: ['good', 'Cumple'], progreso: ['warn', 'En camino'], atencion: ['bad', 'Atención'] };
+function goalsHtml(goals, waitingQuality) {
+  const ok = goals.filter(x => x.st === 'cumple').length;
+  return `<section class="agoals">
+    <div class="acol-head"><span class="eyebrow">Metas del agente</span><span class="acol-sum">${goals.length ? `${ok} de ${goals.length} cumplidas` : ''}${waitingQuality ? ' · cargando reporte…' : ''}</span></div>
+    ${goals.length ? `<div class="tbl-wrap"><table class="ttable gtable">
+      <thead><tr><th>Indicador</th><th>Actual</th><th>Meta</th><th>Estado</th><th>Análisis</th></tr></thead>
+      <tbody>${goals.map(x => `<tr>
+        <td class="tt-name">${esc(x.ind)}</td>
+        <td class="g-num">${esc(x.actual)}</td>
+        <td class="g-num">${esc(x.meta)}</td>
+        <td><span class="pill ${GOAL_ST[x.st][0]}">${GOAL_ST[x.st][1]}</span></td>
+        <td class="tt-desc">${esc(x.why)}</td>
+      </tr>`).join('')}</tbody></table></div>` : '<div class="muted-note">Sin datos suficientes para proponer metas.</div>'}
+  </section>`;
+}
+
 function projectsFor(name) {
   const n = normName(name);
   return projects.filter(p => normName(p.lider) === n);
@@ -682,6 +831,7 @@ function renderCards(t, q) {
     const avg = active.length ? Math.round(active.reduce((s, p) => s + (Number(p.pct) || 0), 0) / active.length) : null;
     const hours = ps.reduce((s, p) => s + (Number(p.hours) || 0), 0);
     const tk = a.tickets_abiertos || [];
+    const myAlarms = flatAlarms(a.name);
     const old = tk.filter(x => x.dias > 7).length;
     const cal = qa ? qa.calificaciones : null;
     const calN = cal ? cal.excelente + cal.regular + cal.mala : 0;
@@ -777,11 +927,17 @@ function renderCards(t, q) {
             <span class="chip"><b>${tk.length}</b> ticket${tk.length === 1 ? '' : 's'} abierto${tk.length === 1 ? '' : 's'}</span>
             <span class="chip"><b>${ts.length}</b> tarea${ts.length === 1 ? '' : 's'}</span>
             ${old ? `<span class="chip alert"><b>${old}</b> con más de 7 d</span>` : ''}
+            ${myAlarms.length ? `<span class="chip alert"><b>${myAlarms.length}</b> alarma${myAlarms.length === 1 ? '' : 's'}</span>` : ''}
             ${csat != null ? `<span class="chip">Satisfacción <b>${csat}%</b></span>` : ''}
           </div>
         </div>
       </div>
       ${tasksHtml}
+      <section class="aalarms">
+        <div class="acol-head"><span class="eyebrow">Alarmas · ${myAlarms.length}</span><span class="acol-sum">${myAlarms.length ? 'más graves primero' : ''}</span></div>
+        ${!alarms ? '<div class="muted-note">Cargando alarmas…</div>' : myAlarms.length ? alarmRows(myAlarms, false) : '<div class="muted-note">Sin alarmas para este agente.</div>'}
+      </section>
+      ${goalsHtml(buildGoals(a, qa, team, myAlarms, (qOk && q.metas) || (alarms && alarms.metas)), !qOk && q == null)}
       <div class="acard-body">
         <div class="acol">
           <div class="acol-head"><span class="eyebrow">Proyectos</span><span class="acol-sum">${avg == null ? '' : `Avance promedio ${avg}%`}</span></div>
@@ -797,7 +953,7 @@ function renderCards(t, q) {
         </div>
       </div>
     </article>`;
-    return { name: a.name, html, abiertos: tk.length, alerta: late.length > 0 || old > 0 };
+    return { name: a.name, html, abiertos: tk.length, alarmas: myAlarms.length, alerta: late.length > 0 || old > 0 || myAlarms.some(x => x.severidad === 'critica') };
   });
 
   const names = entries.map(e => e.name);
@@ -810,7 +966,7 @@ function renderCards(t, q) {
     </button>`).join('')}</div>`;
 
   lastRender = { t, q };
-  root.innerHTML = `${tabs}<div class="acards">${current ? current.html : ''}</div>
+  root.innerHTML = `${teamAlarmsHtml()}${tabs}<div class="acards">${current ? current.html : ''}</div>
     <div class="notes" style="margin-top:1rem">
       Proyectos y tareas: los del dashboard cuyo líder o encargado coincide con el agente. Tickets: buzón ${esc(t.buzon)}.
       Cierre y 1ª respuesta en horas calendario; "1ª resp. en meta" usa horas laborales${qOk && q.metas ? ` (≤ ${esc(q.metas.primera_respuesta)} h)` : ''}.
@@ -832,6 +988,17 @@ function selectAgent(name) {
   if (btn) { btn.focus(); btn.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
 }
 document.getElementById('root').addEventListener('click', e => {
+  const atg = e.target.closest('.alarms-toggle');
+  if (atg) {
+    alarmsOpen = !alarmsOpen;
+    try { localStorage.setItem('desempeno.alarmas', alarmsOpen ? '1' : '0'); } catch (err) {}
+    atg.closest('.alarms-panel').classList.toggle('collapsed', !alarmsOpen);
+    atg.setAttribute('aria-expanded', String(alarmsOpen));
+    atg.textContent = alarmsOpen ? 'Ocultar' : 'Mostrar';
+    return;
+  }
+  const af = e.target.closest('.fchip[data-af]');
+  if (af && !af.disabled) { alarmFilter = af.dataset.af; if (lastRender) renderCards(lastRender.t, lastRender.q); return; }
   const tg = e.target.closest('.tasks-toggle');
   if (tg) {
     tasksOpen = !tasksOpen;
@@ -981,13 +1148,16 @@ async function load(force = false) {
   const qs = new URLSearchParams({ desde: range.desde, hasta: range.hasta });
   if (force) qs.set('refresh', '1');
   try {
-    const [t, p, tr] = await Promise.all([
+    const al = new URLSearchParams(); if (force) al.set('refresh', '1');
+    const [t, p, tr, ar] = await Promise.all([
       fetch('/api/tickets?' + qs).then(r => r.json()),
       fetch('/api/projects').then(r => r.json()).catch(() => []),
       fetch('/api/tareas-rutinarias').then(r => r.json()).catch(() => []),
+      fetch('/api/tickets/alarmas?' + al).then(r => r.json()).catch(() => ({ error: 'Sin conexión' })),
     ]);
     projects = Array.isArray(p) ? p : [];
     tareas = Array.isArray(tr) ? tr : [];
+    alarms = ar && ar.configured === false ? null : ar;
     lastTickets = t;
     renderCards(t, null); // first paint without the (slower) weekly report
     if (t.configured && !t.error) {

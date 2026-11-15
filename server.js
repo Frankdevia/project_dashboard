@@ -594,6 +594,15 @@ async function getTicketList(needFrom, force) {
   return cached('list', () => fetchTicketList(from), force || deeper);
 }
 
+// Keep only this mailbox and tickets that are unassigned or belong to the configured agents
+function scopeTickets(raw) {
+  return (raw.tickets || [])
+    .filter(t => normAgent(t.buzon) === normAgent(FS_MAILBOX))
+    .map(t => ({ ...t, agent: agentKeys.get(normAgent(t.responsable)) || null, unassigned: t.responsable === UNASSIGNED || !t.responsable }))
+    .filter(t => t.agent || t.unassigned);
+}
+function ticketAge(t, today) { return t.dias_abierto != null ? t.dias_abierto : Math.max(0, daysBetween(t.creado.slice(0, 10), today)); }
+
 // Range from ?desde&hasta — default = last 7 complete days, never in the future, at most MAX_RANGE_DAYS
 function parseRange(q) {
   const today = todayLocal();
@@ -663,15 +672,11 @@ app.get('/api/tickets', async (req, res) => {
   if (metR.status === 'rejected') console.error('FreeScout metricas_periodo error:', scrubSecrets(metR.reason && metR.reason.message));
 
   const raw = listR.value.data;
-  // Keep only this mailbox and tickets that are unassigned or belong to the configured agents
-  const tickets = (raw.tickets || [])
-    .filter(t => normAgent(t.buzon) === normAgent(FS_MAILBOX))
-    .map(t => ({ ...t, agent: agentKeys.get(normAgent(t.responsable)) || null, unassigned: t.responsable === UNASSIGNED || !t.responsable }))
-    .filter(t => t.agent || t.unassigned);
+  const tickets = scopeTickets(raw);
 
   const open = tickets.filter(t => t.estado !== 'cerrado');
   const ageBuckets = [['< 1 día', 1], ['1-3 días', 3], ['3-7 días', 7], ['7-30 días', 30], ['> 30 días', Infinity]];
-  const ageOf = t => t.dias_abierto != null ? t.dias_abierto : Math.max(0, daysBetween(t.creado.slice(0, 10), today));
+  const ageOf = t => ticketAge(t, today);
   const ahora = {
     abiertos: open.length,
     activos: open.filter(t => t.estado === 'activo').length,
@@ -798,6 +803,73 @@ app.get('/api/tickets/detalle/:numero', async (req, res) => {
     console.error('FreeScout leer_ticket error:', detail);
     res.json({ ...base, conversacion: null, error: 'No se pudo leer la conversación.', detail });
   }
+});
+
+// ── Alarms: tickets without first reply, unanswered, unassigned, and slow to resolve ──
+// "Slow" = open longer than FREESCOUT_ALARMA_DIAS (default 7) calendar days; critical after
+// FREESCOUT_ALARMA_DIAS_CRITICO (default 30). No-first-reply / unanswered come from today's
+// reporte_agentes (business hours, compared against its goals).
+const ALARM_DAYS = Number(process.env.FREESCOUT_ALARMA_DIAS) || 7;
+const ALARM_CRIT_DAYS = Number(process.env.FREESCOUT_ALARMA_DIAS_CRITICO) || 30;
+
+app.get('/api/tickets/alarmas', async (req, res) => {
+  if (!FREESCOUT_MCP_URL) return res.json({ configured: false });
+  const today = todayLocal();
+  const force = req.query.refresh === '1';
+  const [listR, repR] = await Promise.allSettled([
+    getTicketList(addDays(today, -1), force),
+    cached(`rep:${today}`, () => withFreescoutMcp(call => call('reporte_agentes', { hasta: today })), force),
+  ]);
+  if (listR.status === 'rejected') {
+    const detail = scrubSecrets(listR.reason && listR.reason.message);
+    console.error('FreeScout alarmas error:', detail);
+    return res.json({ configured: true, error: 'No se pudo consultar FreeScout.', detail });
+  }
+  if (repR.status === 'rejected') console.error('FreeScout reporte (alarmas) error:', scrubSecrets(repR.reason && repR.reason.message));
+
+  const open = scopeTickets(listR.value.data).filter(t => t.estado !== 'cerrado');
+  const base = t => ({ numero: t.numero, asunto: t.asunto, estado: t.estado, agente: t.agent || UNASSIGNED, dias: ticketAge(t, today), creado: t.creado });
+  const demorados = open
+    .filter(t => ticketAge(t, today) > ALARM_DAYS)
+    .map(t => ({ ...base(t), severidad: ticketAge(t, today) > ALARM_CRIT_DAYS ? 'critica' : 'alta' }))
+    .sort((a, b) => b.dias - a.dias);
+  const sin_responsable = open.filter(t => t.unassigned)
+    .map(t => ({ ...base(t), severidad: ticketAge(t, today) > 1 ? 'alta' : 'media' }))
+    .sort((a, b) => b.dias - a.dias);
+
+  const rep = repR.status === 'fulfilled' ? repR.value.data : null;
+  const metas = rep && rep.metas_horas_laborales || null;
+  const byNumber = new Map(open.map(t => [t.numero, t]));
+  const fromReport = (key, metaH) => {
+    const out = [];
+    for (const a of (rep && rep.agentes) || []) {
+      const name = agentKeys.get(normAgent(a.agente));
+      if (!name) continue;
+      for (const t of (a[key] && a[key].tickets) || []) {
+        const known = byNumber.get(t.numero);
+        out.push({
+          numero: t.numero, asunto: t.asunto, estado: t.estado || (known && known.estado) || null, agente: name,
+          dias: known ? ticketAge(known, today) : null, espera_horas_laborales: t.espera_horas_laborales ?? null,
+          severidad: metaH != null && (t.espera_horas_laborales || 0) > metaH * 2 ? 'critica' : metaH != null && (t.espera_horas_laborales || 0) > metaH ? 'alta' : 'media',
+        });
+      }
+    }
+    return out.sort((a, b) => (b.espera_horas_laborales || 0) - (a.espera_horas_laborales || 0));
+  };
+
+  res.json({
+    configured: true,
+    fecha: today,
+    stale: listR.value.stale || (repR.status === 'fulfilled' && repR.value.stale),
+    umbral_dias: ALARM_DAYS,
+    umbral_critico_dias: ALARM_CRIT_DAYS,
+    metas,
+    reporte_disponible: !!rep,
+    sin_primera_respuesta: fromReport('sin_primera_respuesta', metas && metas.primera_respuesta),
+    sin_contestar: fromReport('sin_contestar', metas && metas.respuestas_siguientes),
+    sin_responsable,
+    demorados,
+  });
 });
 
 // ── Satisfaction ratings and business-hours goals (reporte_agentes) ──
