@@ -432,14 +432,32 @@ const TICKETS_TTL_MS = (Number(process.env.FREESCOUT_CACHE_MINUTES) || 5) * 60 *
 let ticketsCache = null;      // { data, fetchedAt }
 let ticketsInflight = null;   // Promise while a refresh is running
 
+const TICKETS_TIMEOUT_MS = (Number(process.env.FREESCOUT_TIMEOUT_SECONDS) || 20) * 1000;
+
+// Remove the MCP URL (it may carry the secret in its path/query) and the token from error text
+function scrubSecrets(msg) {
+  let out = String(msg || 'Error desconocido');
+  const secrets = [FREESCOUT_MCP_URL, FREESCOUT_MCP_TOKEN];
+  try {
+    const u = new URL(FREESCOUT_MCP_URL);
+    secrets.push(u.pathname, u.search, ...u.pathname.split('/').filter(seg => seg.length >= 12));
+  } catch {}
+  for (const sec of secrets) if (sec && sec.length > 3) out = out.split(sec).join('***');
+  return out.slice(0, 300);
+}
+
 async function callFreescoutTools() {
   const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
   const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
   const headers = FREESCOUT_MCP_TOKEN ? { Authorization: `Bearer ${FREESCOUT_MCP_TOKEN}` } : {};
   const transport = new StreamableHTTPClientTransport(new URL(FREESCOUT_MCP_URL), { requestInit: { headers } });
   const client = new Client({ name: 'project-dashboard', version: '1.0.0' });
-  await client.connect(transport);
-  try {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Sin respuesta del MCP en ${TICKETS_TIMEOUT_MS / 1000}s (¿IP bloqueada o URL incorrecta?)`)), TICKETS_TIMEOUT_MS);
+  });
+  const work = (async () => {
+    await client.connect(transport);
     const call = async (name, args = {}) => {
       const r = await client.callTool({ name, arguments: args });
       if (r.isError) throw new Error(`${name}: ${(r.content || []).map(c => c.text).join(' ')}`);
@@ -449,7 +467,12 @@ async function callFreescoutTools() {
     };
     const [resumen, metricas] = await Promise.all([call('resumen_actual'), call('metricas_periodo')]);
     return { resumen, metricas };
+  })();
+  try {
+    return await Promise.race([work, timeout]);
   } finally {
+    clearTimeout(timer);
+    work.catch(() => {});
     await client.close().catch(() => {});
   }
 }
@@ -466,8 +489,9 @@ app.get('/api/tickets', async (req, res) => {
     try {
       await ticketsInflight;
     } catch (err) {
-      console.error('FreeScout MCP error:', err.message);
-      if (!ticketsCache) return res.status(502).json({ configured: true, error: 'No se pudo consultar FreeScout.' });
+      const detail = scrubSecrets(err && err.message);
+      console.error('FreeScout MCP error:', detail);
+      if (!ticketsCache) return res.status(502).json({ configured: true, error: 'No se pudo consultar FreeScout.', detail });
       // Serve the last good data, flagged as stale
       return res.json({ configured: true, stale: true, fetchedAt: new Date(ticketsCache.fetchedAt).toISOString(), ...ticketsCache.data });
     }

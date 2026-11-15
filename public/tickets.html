@@ -279,7 +279,7 @@ function render(data) {
   }
   if (data.error) {
     sub.textContent = 'Error al consultar FreeScout';
-    root.innerHTML = `<div class="panel state">${esc(data.error)}<br><button class="refresh-btn" onclick="load(true)">Reintentar</button></div>`;
+    root.innerHTML = `<div class="panel state">${esc(data.error)}${data.detail ? `<br><code>${esc(data.detail)}</code>` : ''}<br><br><button class="refresh-btn" onclick="load(true)">Reintentar</button></div>`;
     return;
   }
 
@@ -374,7 +374,13 @@ function render(data) {
 async function load(force = false) {
   try {
     const res = await fetch('/api/tickets' + (force ? '?refresh=1' : ''));
-    const data = await res.json().catch(() => ({ configured: true, error: 'Respuesta inválida del servidor.' }));
+    const raw = await res.text();
+    let data;
+    try { data = JSON.parse(raw); }
+    catch {
+      const snippet = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+      data = { configured: true, error: `Respuesta inválida del servidor (HTTP ${res.status}).`, detail: snippet };
+    }
     render(data);
   } catch {
     render({ configured: true, error: 'Sin conexión con el servidor del dashboard.' });
