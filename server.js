@@ -423,6 +423,58 @@ app.delete('/api/leader-tasks/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── FreeScout tickets (via the FreeScout MCP server) ──
+// FREESCOUT_MCP_URL   → Streamable HTTP endpoint of the MCP server (e.g. https://host/mcp)
+// FREESCOUT_MCP_TOKEN → optional bearer token sent as Authorization header
+const FREESCOUT_MCP_URL = process.env.FREESCOUT_MCP_URL || '';
+const FREESCOUT_MCP_TOKEN = process.env.FREESCOUT_MCP_TOKEN || '';
+const TICKETS_TTL_MS = (Number(process.env.FREESCOUT_CACHE_MINUTES) || 5) * 60 * 1000;
+let ticketsCache = null;      // { data, fetchedAt }
+let ticketsInflight = null;   // Promise while a refresh is running
+
+async function callFreescoutTools() {
+  const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
+  const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
+  const headers = FREESCOUT_MCP_TOKEN ? { Authorization: `Bearer ${FREESCOUT_MCP_TOKEN}` } : {};
+  const transport = new StreamableHTTPClientTransport(new URL(FREESCOUT_MCP_URL), { requestInit: { headers } });
+  const client = new Client({ name: 'project-dashboard', version: '1.0.0' });
+  await client.connect(transport);
+  try {
+    const call = async (name, args = {}) => {
+      const r = await client.callTool({ name, arguments: args });
+      if (r.isError) throw new Error(`${name}: ${(r.content || []).map(c => c.text).join(' ')}`);
+      if (r.structuredContent) return r.structuredContent.result ?? r.structuredContent;
+      const text = (r.content || []).find(c => c.type === 'text')?.text;
+      return JSON.parse(text);
+    };
+    const [resumen, metricas] = await Promise.all([call('resumen_actual'), call('metricas_periodo')]);
+    return { resumen, metricas };
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
+app.get('/api/tickets', async (req, res) => {
+  if (!FREESCOUT_MCP_URL) {
+    return res.json({ configured: false });
+  }
+  const fresh = ticketsCache && Date.now() - ticketsCache.fetchedAt < TICKETS_TTL_MS;
+  if (!fresh || req.query.refresh === '1') {
+    ticketsInflight = ticketsInflight || callFreescoutTools()
+      .then(data => { ticketsCache = { data, fetchedAt: Date.now() }; })
+      .finally(() => { ticketsInflight = null; });
+    try {
+      await ticketsInflight;
+    } catch (err) {
+      console.error('FreeScout MCP error:', err.message);
+      if (!ticketsCache) return res.status(502).json({ configured: true, error: 'No se pudo consultar FreeScout.' });
+      // Serve the last good data, flagged as stale
+      return res.json({ configured: true, stale: true, fetchedAt: new Date(ticketsCache.fetchedAt).toISOString(), ...ticketsCache.data });
+    }
+  }
+  res.json({ configured: true, stale: false, fetchedAt: new Date(ticketsCache.fetchedAt).toISOString(), ...ticketsCache.data });
+});
+
 // Debug endpoint to verify volume persistence
 app.get('/api/debug/volume', (req, res) => {
   const dataDir = path.join(__dirname, 'data');
