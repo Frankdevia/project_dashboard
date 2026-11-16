@@ -375,8 +375,10 @@
   .atasks { border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem 1.3rem; display: flex; flex-direction: column; gap: 0.8rem; }
   .atasks.collapsed .tasks-body { display: none; }
   /* Alarms */
-  .alarms-panel { display: flex; flex-direction: column; gap: 0.7rem; border-left: 3px solid var(--red); }
-  .alarms-panel.collapsed .alarms-body { display: none; }
+  .aalarms.has { box-shadow: inset 3px 0 0 var(--red); }
+  .aalarms.collapsed .alarms-body { display: none; }
+  .atab .cnt.al { background: color-mix(in srgb, var(--red) 18%, transparent); border-color: color-mix(in srgb, var(--red) 40%, transparent); color: var(--red); font-weight: 600; }
+  .atab.on .cnt.al { background: var(--red); color: #fff; border-color: transparent; }
   .alarms-body { display: flex; flex-direction: column; gap: 0.6rem; }
   .aalarms, .agoals { border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem 1.2rem; display: flex; flex-direction: column; gap: 0.7rem; }
   .alarm-list { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; max-height: 360px; overflow-y: auto; scrollbar-width: thin; }
@@ -654,7 +656,6 @@ function levelColor(n) { return n >= 4 ? 'var(--amber)' : n >= 3 ? 'var(--accent
 const ALARM_TYPES = [
   ['sin_primera_respuesta', 'Sin 1ª respuesta'],
   ['sin_contestar', 'Sin contestar'],
-  ['sin_responsable', 'Sin responsable'],
   ['demorados', 'Resolución demorada'],
 ];
 const SEV_ORDER = { critica: 0, alta: 1, media: 2 };
@@ -690,22 +691,20 @@ function alarmChips(list) {
   return `<div class="fchips">${[['todas', 'Todas'], ...ALARM_TYPES].map(([k, label]) =>
     `<button class="fchip${k === alarmFilter ? ' on' : ''}" data-af="${k}"${counts[k] || k === 'todas' ? '' : ' disabled'}>${label} <span>${counts[k] || 0}</span></button>`).join('')}</div>`;
 }
-function teamAlarmsHtml() {
-  if (!alarms) return '<section class="panel alarms-panel"><div class="muted-note">Cargando alarmas…</div></section>';
-  if (alarms.error) return `<section class="panel alarms-panel"><div class="muted-note">Alarmas no disponibles: ${esc(alarms.error)}</div></section>`;
-  const all = flatAlarms(null);
-  const crit = all.filter(x => x.severidad === 'critica').length;
-  const shown = all.filter(x => alarmFilter === 'todas' || x.tipo === alarmFilter);
-  return `<section class="panel alarms-panel${alarmsOpen ? '' : ' collapsed'}">
+function agentAlarmsHtml(myAlarms) {
+  if (!alarms) return '<section class="aalarms"><div class="acol-head"><span class="eyebrow">Alarmas</span></div><div class="muted-note">Cargando alarmas…</div></section>';
+  if (alarms.error) return `<section class="aalarms"><div class="acol-head"><span class="eyebrow">Alarmas</span></div><div class="muted-note">Alarmas no disponibles: ${esc(alarms.error)}</div></section>`;
+  const crit = myAlarms.filter(x => x.severidad === 'critica').length;
+  const shown = myAlarms.filter(x => alarmFilter === 'todas' || x.tipo === alarmFilter);
+  return `<section class="aalarms${myAlarms.length ? ' has' : ''}${alarmsOpen ? '' : ' collapsed'}">
     <div class="acol-head">
-      <span class="eyebrow">Alarmas del equipo · ${all.length}</span>
-      <span class="acol-sum">${crit ? `<b style="color:var(--red)">${crit} crítica${crit === 1 ? '' : 's'}</b> · ` : ''}más graves primero
-        <button class="tasks-toggle alarms-toggle" aria-expanded="${alarmsOpen}">${alarmsOpen ? 'Ocultar' : 'Mostrar'}</button></span>
+      <span class="eyebrow">Alarmas · ${myAlarms.length}</span>
+      <span class="acol-sum">${crit ? `<b style="color:var(--red)">${crit} crítica${crit === 1 ? '' : 's'}</b> · ` : ''}${myAlarms.length ? 'más graves primero' : ''}
+        ${myAlarms.length ? `<button class="tasks-toggle alarms-toggle" aria-expanded="${alarmsOpen}">${alarmsOpen ? 'Ocultar' : 'Mostrar'}</button>` : ''}</span>
     </div>
     <div class="alarms-body">
-      ${alarmChips(all)}
-      ${shown.length ? alarmRows(shown, true) : '<div class="muted-note">Sin alarmas de este tipo.</div>'}
-      <div class="muted-note">Resolución demorada: abiertos más de ${alarms.umbral_dias} días (crítica desde ${alarms.umbral_critico_dias}). Sin 1ª respuesta y sin contestar: espera en horas laborales frente a la meta${alarms.metas ? ` (${alarms.metas.primera_respuesta} h y ${alarms.metas.respuestas_siguientes} h; crítica al doble)` : ''}.${alarms.reporte_disponible ? '' : ' <span class="warn">El reporte de FreeScout no respondió: faltan las alarmas de respuesta.</span>'}</div>
+      ${myAlarms.length ? `${alarmChips(myAlarms)}${shown.length ? alarmRows(shown, false) : '<div class="muted-note">Sin alarmas de este tipo.</div>'}` : '<div class="muted-note">Sin alarmas para este agente.</div>'}
+      <div class="muted-note">Resolución demorada: abierto más de ${alarms.umbral_dias} días (crítica desde ${alarms.umbral_critico_dias}). Sin 1ª respuesta y sin contestar: espera en horas laborales frente a la meta${alarms.metas ? ` (${alarms.metas.primera_respuesta} h y ${alarms.metas.respuestas_siguientes} h; crítica al doble)` : ''}.${alarms.reporte_disponible ? '' : ' <span class="warn">El reporte de FreeScout no respondió: faltan las alarmas de respuesta.</span>'}</div>
     </div>
   </section>`;
 }
@@ -933,10 +932,7 @@ function renderCards(t, q) {
         </div>
       </div>
       ${tasksHtml}
-      <section class="aalarms">
-        <div class="acol-head"><span class="eyebrow">Alarmas · ${myAlarms.length}</span><span class="acol-sum">${myAlarms.length ? 'más graves primero' : ''}</span></div>
-        ${!alarms ? '<div class="muted-note">Cargando alarmas…</div>' : myAlarms.length ? alarmRows(myAlarms, false) : '<div class="muted-note">Sin alarmas para este agente.</div>'}
-      </section>
+      ${agentAlarmsHtml(myAlarms)}
       ${goalsHtml(buildGoals(a, qa, team, myAlarms, (qOk && q.metas) || (alarms && alarms.metas)), !qOk && q == null)}
       <div class="acard-body">
         <div class="acol">
@@ -961,12 +957,12 @@ function renderCards(t, q) {
   const current = entries.find(e => e.name === selectedAgent);
   const tabs = `<div class="atabs" role="tablist" aria-label="Agentes">${entries.map(e => `
     <button class="atab${e.name === selectedAgent ? ' on' : ''}" role="tab" aria-selected="${e.name === selectedAgent}" data-agent="${esc(e.name)}"
-      title="${e.abiertos} tickets abiertos${e.alerta ? ' · con alertas' : ''}">
-      ${avatar(e.name)}<span>${esc(e.name)}</span><span class="cnt">${e.abiertos}</span>${e.alerta ? '<span class="wdot" aria-label="con alertas"></span>' : ''}
+      title="${e.abiertos} tickets abiertos${e.alarmas ? ` · ${e.alarmas} alarmas` : ''}">
+      ${avatar(e.name)}<span>${esc(e.name)}</span><span class="cnt" title="Tickets abiertos">${e.abiertos}</span>${e.alarmas ? `<span class="cnt al" title="Alarmas">${e.alarmas}</span>` : (e.alerta ? '<span class="wdot" aria-label="con alertas"></span>' : '')}
     </button>`).join('')}</div>`;
 
   lastRender = { t, q };
-  root.innerHTML = `${teamAlarmsHtml()}${tabs}<div class="acards">${current ? current.html : ''}</div>
+  root.innerHTML = `${tabs}<div class="acards">${current ? current.html : ''}</div>
     <div class="notes" style="margin-top:1rem">
       Proyectos y tareas: los del dashboard cuyo líder o encargado coincide con el agente. Tickets: buzón ${esc(t.buzon)}.
       Cierre y 1ª respuesta en horas calendario; "1ª resp. en meta" usa horas laborales${qOk && q.metas ? ` (≤ ${esc(q.metas.primera_respuesta)} h)` : ''}.
@@ -992,7 +988,7 @@ document.getElementById('root').addEventListener('click', e => {
   if (atg) {
     alarmsOpen = !alarmsOpen;
     try { localStorage.setItem('desempeno.alarmas', alarmsOpen ? '1' : '0'); } catch (err) {}
-    atg.closest('.alarms-panel').classList.toggle('collapsed', !alarmsOpen);
+    atg.closest('.aalarms').classList.toggle('collapsed', !alarmsOpen);
     atg.setAttribute('aria-expanded', String(alarmsOpen));
     atg.textContent = alarmsOpen ? 'Ocultar' : 'Mostrar';
     return;
