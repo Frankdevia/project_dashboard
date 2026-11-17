@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iniciar sesión</title>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #10151C;
+    --bg-card: #171E27;
+    --bg-card-hover: #1D2630;
+    --bg-input: #0B0F14;
+    --border: rgba(150,180,210,0.12);
+    --border-focus: rgba(150,180,210,0.30);
+    --text: #E7EDF3;
+    --text-muted: #93A1B0;
+    --text-dim: #586676;
+    --accent: #5BC6BE;
+    --accent-ink: #06201E;
+    --red: #F0524D;
+    --amber: #E0A030;
+    --blue: #5BC6BE;
+    --green: #3BA776;
+    --prio-alta: #F0524D;
+    --prio-media: #E0A030;
+    --prio-baja: #3BA776;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --track: rgba(255,255,255,0.07);
+    --tint: rgba(255,255,255,0.03);
+    --prio-alta-bg: rgba(240,82,77,0.14);
+    --prio-media-bg: rgba(224,160,48,0.14);
+    --prio-baja-bg: rgba(59,167,118,0.14);
+    --st-done: #3BA776; --st-done-bg: rgba(59,167,118,0.14);
+    --st-adv:  #5BC6BE; --st-adv-bg:  rgba(91,198,190,0.14);
+    --st-prog: #93A1B0; --st-prog-bg: rgba(147,161,176,0.12);
+    --st-init: #6B7686; --st-init-bg: rgba(120,135,155,0.10);
+  }
+  :root[data-theme="light"] {
+    --bg: #EEF1F4;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #F4F7FA;
+    --bg-input: #FFFFFF;
+    --border: rgba(20,45,70,0.13);
+    --border-focus: rgba(20,45,70,0.32);
+    --text: #16222E;
+    --text-muted: #52626F;
+    --text-dim: #8593A0;
+    --accent: #128C84;
+    --accent-ink: #FFFFFF;
+    --red: #D23A34;
+    --amber: #9C6B0E;
+    --blue: #128C84;
+    --green: #1C8A5B;
+    --track: rgba(20,45,70,0.10);
+    --tint: rgba(20,45,70,0.035);
+    --prio-alta: #D23A34;  --prio-alta-bg: rgba(210,58,52,0.12);
+    --prio-media: #9C6B0E; --prio-media-bg: rgba(156,107,14,0.13);
+    --prio-baja: #1C8A5B;  --prio-baja-bg: rgba(28,138,91,0.13);
+    --st-done: #1C8A5B; --st-done-bg: rgba(28,138,91,0.13);
+    --st-adv:  #128C84; --st-adv-bg:  rgba(18,140,132,0.13);
+    --st-prog: #52626F; --st-prog-bg: rgba(82,98,111,0.12);
+    --st-init: #8593A0; --st-init-bg: rgba(133,147,160,0.12);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  main { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
+  .login { width: min(380px, 100%); background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem 1.75rem; display: flex; flex-direction: column; gap: 1rem; }
+  .login .brand { display: flex; align-items: center; gap: 0.6rem; }
+  .login .brand img { width: 30px; height: 30px; }
+  .login h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em; }
+  .login p.lead { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
+  .login label { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.8rem; color: var(--text-muted); }
+  .login input { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font-body); font-size: 0.95rem; padding: 0.65rem 0.8rem; }
+  .login input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .login button { background: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); color: var(--accent-ink); font-family: var(--font-body); font-size: 0.95rem; font-weight: 600; padding: 0.7rem; cursor: pointer; margin-top: 0.25rem; }
+  .login button[disabled] { opacity: 0.6; cursor: progress; }
+  .login .err { color: var(--red); font-size: 0.82rem; min-height: 1.2em; }
+</style>
+</head>
+<body>
+<main>
+  <form class="login" id="loginForm" novalidate>
+    <div class="brand"><img src="favicon.svg" alt=""><h1>Dashboard TI</h1></div>
+    <p class="lead">Inicia sesión para continuar. Si eres agente, verás tu My Dashboard.</p>
+    <label>Usuario <input id="user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus></label>
+    <label>Contraseña <input id="pass" name="password" type="password" autocomplete="current-password" required></label>
+    <div class="err" id="err" role="alert"></div>
+    <button type="submit" id="go">Iniciar sesión</button>
+  </form>
+</main>
+<script>
+// Only same-site paths are accepted as the return address
+function safeNext() {
+  const n = new URLSearchParams(location.search).get('next') || '';
+  return /^\/(?!\/)/.test(n) && !n.startsWith('/login.html') ? n : null;
+}
+fetch('/api/me').then(r => r.json()).then(me => {
+  if (me && me.role) location.replace(me.role === 'agent' ? '/my-dashboard.html' : (safeNext() || '/'));
+}).catch(() => {});
+
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = document.getElementById('err');
+  const btn = document.getElementById('go');
+  const user = document.getElementById('user').value.trim();
+  const pass = document.getElementById('pass').value;
+  err.textContent = '';
+  if (!user || !pass) { err.textContent = 'Escribe usuario y contraseña.'; return; }
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user, pass }) });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) { location.replace(d.role === 'agent' ? '/my-dashboard.html' : (safeNext() || d.home || '/')); return; }
+    err.textContent = d.error || 'No se pudo iniciar sesión.';
+    document.getElementById('pass').select();
+  } catch { err.textContent = 'Error de conexión.'; }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>

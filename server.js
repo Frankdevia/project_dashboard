@@ -9,8 +9,56 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
-// ── In-memory sessions: token → { user } ──
-const sessions = new Map();
+app.set('trust proxy', 1); // EasyPanel/Traefik in front: req.ip and req.secure come from X-Forwarded-*
+
+// ── Users ──
+// The admin comes from ADMIN_USER / ADMIN_PASSWORD. Agent users live in data/users.json, each tied
+// to one FreeScout agent; they can only open their own My Dashboard.
+const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+const SESSIONS_FILE = path.join(__dirname, 'data', 'sessions.json');
+const SESSION_DAYS = Number(process.env.SESSION_DAYS) || 7;
+const SESSION_MS = SESSION_DAYS * 24 * 60 * 60 * 1000;
+
+function readJsonFile(file, fallback) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
+}
+function writeJsonFile(file, data) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
+  fs.renameSync(tmp, file);
+}
+let users = readJsonFile(USERS_FILE, []);
+function saveUsers() { writeJsonFile(USERS_FILE, users); }
+
+function hashPassword(pass) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  return { salt, hash: crypto.scryptSync(pass, salt, 64).toString('hex') };
+}
+function verifyPassword(pass, salt, hash) {
+  const got = crypto.scryptSync(String(pass), salt, 64);
+  const want = Buffer.from(hash || '', 'hex');
+  return want.length === got.length && crypto.timingSafeEqual(got, want);
+}
+function safeEqual(a, b) {
+  const x = crypto.createHash('sha256').update(String(a)).digest();
+  const y = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(x, y);
+}
+
+// ── Sessions: sha256(token) → { role, user, name, agent, userId, exp } ──
+// Persisted (hashed) so a redeploy does not log everyone out.
+const sessions = new Map(Object.entries(readJsonFile(SESSIONS_FILE, {})));
+const tokenKey = token => crypto.createHash('sha256').update(token).digest('hex');
+function saveSessions() {
+  const now = Date.now();
+  for (const [k, v] of sessions) if (!v.exp || v.exp < now) sessions.delete(k);
+  try { writeJsonFile(SESSIONS_FILE, Object.fromEntries(sessions)); } catch (e) { console.error('No se pudieron guardar las sesiones:', e.message); }
+}
+function revokeUserSessions(userId) {
+  for (const [k, v] of sessions) if (v.userId === userId) sessions.delete(k);
+  saveSessions();
+}
 
 // ── Parse cookies helper ──
 function parseCookies(header = '') {
@@ -18,7 +66,8 @@ function parseCookies(header = '') {
     const idx = pair.indexOf('=');
     if (idx === -1) return acc;
     const key = pair.slice(0, idx).trim();
-    const val = decodeURIComponent(pair.slice(idx + 1).trim());
+    let val = pair.slice(idx + 1).trim();
+    try { val = decodeURIComponent(val); } catch {}
     acc[key] = val;
     return acc;
   }, {});
@@ -26,21 +75,53 @@ function parseCookies(header = '') {
 
 // ── Auth helper ──
 function getSession(req) {
-  const cookies = parseCookies(req.headers.cookie);
-  const token = cookies.admin_session;
-  return token ? sessions.get(token) : null;
+  const token = parseCookies(req.headers.cookie).admin_session;
+  if (!token) return null;
+  const key = tokenKey(token);
+  const s = sessions.get(key);
+  if (!s) return null;
+  if (s.exp < Date.now()) { sessions.delete(key); return null; }
+  if (s.role === 'agent') {
+    const u = users.find(x => x.id === s.userId);
+    if (!u || !u.active) { sessions.delete(key); return null; }
+    s.agent = u.agent; // follows admin edits
+  }
+  return s;
+}
+const isAgentSession = s => s && s.role === 'agent';
+function sessionCookie(req, token, maxAgeSec) {
+  return `admin_session=${token}; Path=/; Max-Age=${maxAgeSec}; SameSite=Lax; HttpOnly${req.secure ? '; Secure' : ''}`;
 }
 
-// ── Write-protection middleware ──
-// All non-GET requests require a valid admin session.
-// /api/login is exempt (it's how you get a session).
+// ── Access control ──
+// Everything needs a session except the login page and the auth endpoints.
+// Admin: full access. Agent: only My Dashboard and the read endpoints it uses (filtered to them).
+const PUBLIC_PATHS = new Set(['/login.html', '/api/login', '/api/logout', '/api/me', '/favicon.svg', '/auth-guard.js']);
+const AGENT_GET = [
+  /^\/my-dashboard\.html$/,
+  /^\/api\/tickets$/, /^\/api\/tickets\/(alarmas|calidad)$/, /^\/api\/tickets\/detalle\/\d+$/,
+  /^\/api\/projects$/, /^\/api\/tareas-rutinarias$/, /^\/api\/leaders$/, /^\/uploads\/[^/]+$/,
+];
+const AGENT_POST = new Set(['/api/me/password']);
 app.use((req, res, next) => {
-  if (req.method === 'GET') return next();
-  if (req.path === '/api/login') return next();
-  if (!getSession(req)) {
-    return res.status(401).json({ error: 'No autorizado. Inicia sesión para realizar cambios.' });
+  // The page was renamed; keep old links working
+  if (req.path === '/desempeno.html') {
+    const q = req.originalUrl.indexOf('?');
+    return res.redirect(301, '/my-dashboard.html' + (q === -1 ? '' : req.originalUrl.slice(q)));
   }
-  next();
+  if (PUBLIC_PATHS.has(req.path)) return next();
+  const isApi = req.path.startsWith('/api/');
+  const session = getSession(req);
+  if (!session) {
+    if (!isApi && req.method === 'GET') return res.redirect('/login.html?next=' + encodeURIComponent(req.originalUrl));
+    return res.status(401).json({ error: 'Sesión expirada. Inicia sesión de nuevo.' });
+  }
+  req.session = session;
+  if (session.role === 'admin') return next();
+  if (req.method === 'GET' && AGENT_GET.some(r => r.test(req.path))) return next();
+  if (req.method === 'POST' && AGENT_POST.has(req.path)) return next();
+  if (isApi || req.method !== 'GET') return res.status(403).json({ error: 'No tienes permiso para esta acción.' });
+  return res.redirect('/my-dashboard.html');
 });
 const DATA_FILE = path.join(__dirname, 'data', 'projects.json');
 const LEADERS_FILE = path.join(__dirname, 'data', 'leaders.json');
@@ -137,41 +218,162 @@ function writeLeaders(data) {
 
 // ── Auth endpoints ──
 
+// Failed-login throttle: 10 failures per IP in 15 minutes locks that IP for the rest of the window
+const loginFails = new Map(); // ip → { count, first }
+const LOGIN_WINDOW_MS = 15 * 60 * 1000, LOGIN_MAX_FAILS = 10;
+function loginBlocked(ip) {
+  const f = loginFails.get(ip);
+  if (!f) return false;
+  if (Date.now() - f.first > LOGIN_WINDOW_MS) { loginFails.delete(ip); return false; }
+  return f.count >= LOGIN_MAX_FAILS;
+}
+function noteLoginFail(ip) {
+  const f = loginFails.get(ip);
+  if (!f || Date.now() - f.first > LOGIN_WINDOW_MS) loginFails.set(ip, { count: 1, first: Date.now() });
+  else f.count++;
+  if (loginFails.size > 5000) loginFails.delete(loginFails.keys().next().value);
+}
+const publicUser = s => ({
+  admin: s.role === 'admin', role: s.role, user: s.user, name: s.name || s.user, agent: s.agent || null,
+});
+
 // POST /api/login
 app.post('/api/login', (req, res) => {
-  const { user, pass } = req.body;
-  if (!ADMIN_PASSWORD) return res.status(503).json({ error: 'Login no configurado (define ADMIN_PASSWORD).' });
-  if (user === ADMIN_USER && pass === ADMIN_PASSWORD) {
-    const token = crypto.randomBytes(32).toString('hex');
-    sessions.set(token, { user });
-    res.setHeader('Set-Cookie', `admin_session=${token}; Path=/; SameSite=Strict; HttpOnly`);
-    res.json({ ok: true, name: user });
+  const { user, pass } = req.body || {};
+  const ip = req.ip;
+  if (loginBlocked(ip)) return res.status(429).json({ error: 'Demasiados intentos fallidos. Espera unos minutos.' });
+  const name = String(user || '').trim();
+  const lower = name.toLowerCase();
+
+  let session = null;
+  if (ADMIN_PASSWORD && safeEqual(lower, ADMIN_USER.toLowerCase()) && safeEqual(pass || '', ADMIN_PASSWORD)) {
+    session = { role: 'admin', user: ADMIN_USER, name: ADMIN_USER };
   } else {
-    res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+    const u = users.find(x => x.username.toLowerCase() === lower);
+    // Hash even when the user does not exist so timing does not reveal valid usernames
+    const ok = u ? verifyPassword(pass || '', u.salt, u.hash) : (verifyPassword(pass || '', '00', ''), false);
+    if (u && ok && u.active) {
+      session = { role: 'agent', user: u.username, name: u.agent, agent: u.agent, userId: u.id };
+      u.lastLogin = new Date().toISOString();
+      saveUsers();
+    }
   }
+  if (!session) {
+    noteLoginFail(ip);
+    if (!ADMIN_PASSWORD && !users.length) return res.status(503).json({ error: 'Login no configurado (define ADMIN_PASSWORD).' });
+    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+  }
+  loginFails.delete(ip);
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(tokenKey(token), { ...session, exp: Date.now() + SESSION_MS });
+  saveSessions();
+  res.setHeader('Set-Cookie', sessionCookie(req, token, Math.floor(SESSION_MS / 1000)));
+  res.json({ ok: true, ...publicUser(session), home: session.role === 'agent' ? '/my-dashboard.html' : '/' });
 });
 
 // POST /api/logout
 app.post('/api/logout', (req, res) => {
-  const cookies = parseCookies(req.headers.cookie);
-  if (cookies.admin_session) sessions.delete(cookies.admin_session);
-  res.setHeader('Set-Cookie', 'admin_session=; Path=/; Max-Age=0; SameSite=Strict; HttpOnly');
+  const token = parseCookies(req.headers.cookie).admin_session;
+  if (token) { sessions.delete(tokenKey(token)); saveSessions(); }
+  res.setHeader('Set-Cookie', sessionCookie(req, '', 0));
   res.json({ ok: true });
 });
 
 // GET /api/me
 app.get('/api/me', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   const session = getSession(req);
-  if (session) {
-    res.json({ admin: true, user: session.user });
-  } else {
-    res.json({ admin: false });
+  res.json(session ? publicUser(session) : { admin: false, role: null });
+});
+
+// POST /api/me/password — an agent changes their own password
+app.post('/api/me/password', (req, res) => {
+  const s = req.session;
+  if (!isAgentSession(s)) return res.status(400).json({ error: 'La contraseña del administrador se cambia con ADMIN_PASSWORD.' });
+  const u = users.find(x => x.id === s.userId);
+  const { actual, nueva } = req.body || {};
+  if (!u || !verifyPassword(actual || '', u.salt, u.hash)) return res.status(400).json({ error: 'La contraseña actual no es correcta.' });
+  const err = passwordProblem(nueva);
+  if (err) return res.status(400).json({ error: err });
+  Object.assign(u, hashPassword(nueva), { passwordChangedAt: new Date().toISOString() });
+  saveUsers();
+  // Other devices are logged out; this one stays
+  const keep = tokenKey(parseCookies(req.headers.cookie).admin_session);
+  for (const [k, v] of sessions) if (v.userId === u.id && k !== keep) sessions.delete(k);
+  saveSessions();
+  res.json({ ok: true });
+});
+
+// ── User management (admin only; the access middleware already blocks agents) ──
+const USERNAME_RE = /^[a-z0-9._-]{3,32}$/i;
+function passwordProblem(p) {
+  if (typeof p !== 'string' || p.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
+  if (p.length > 200) return 'La contraseña es demasiado larga.';
+  return null;
+}
+const userView = u => ({ id: u.id, username: u.username, agent: u.agent, active: u.active, createdAt: u.createdAt, lastLogin: u.lastLogin || null, passwordChangedAt: u.passwordChangedAt || null });
+
+app.get('/api/users', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ users: users.map(userView), agentes: FS_AGENTS, admin_user: ADMIN_USER });
+});
+
+app.post('/api/users', (req, res) => {
+  const { username, agent, password } = req.body || {};
+  const name = String(username || '').trim();
+  if (!USERNAME_RE.test(name)) return res.status(400).json({ error: 'Usuario: 3 a 32 caracteres (letras, números, punto, guion).' });
+  if (name.toLowerCase() === ADMIN_USER.toLowerCase() || users.some(u => u.username.toLowerCase() === name.toLowerCase()))
+    return res.status(400).json({ error: 'Ese nombre de usuario ya existe.' });
+  if (!FS_AGENTS.includes(agent)) return res.status(400).json({ error: 'Elige un agente de la lista.' });
+  const err = passwordProblem(password);
+  if (err) return res.status(400).json({ error: err });
+  const u = { id: crypto.randomUUID(), username: name, agent, active: true, createdAt: new Date().toISOString(), ...hashPassword(password) };
+  users.push(u);
+  saveUsers();
+  res.json(userView(u));
+});
+
+app.patch('/api/users/:id', (req, res) => {
+  const u = users.find(x => x.id === req.params.id);
+  if (!u) return res.status(404).json({ error: 'Usuario no encontrado.' });
+  const { password, active, agent } = req.body || {};
+  let revoke = false;
+  if (agent !== undefined) {
+    if (!FS_AGENTS.includes(agent)) return res.status(400).json({ error: 'Elige un agente de la lista.' });
+    u.agent = agent;
   }
+  if (password !== undefined) {
+    const err = passwordProblem(password);
+    if (err) return res.status(400).json({ error: err });
+    Object.assign(u, hashPassword(password), { passwordChangedAt: new Date().toISOString() });
+    revoke = true;
+  }
+  if (active !== undefined) { u.active = !!active; if (!u.active) revoke = true; }
+  saveUsers();
+  if (revoke) revokeUserSessions(u.id);
+  res.json(userView(u));
+});
+
+app.delete('/api/users/:id', (req, res) => {
+  const i = users.findIndex(x => x.id === req.params.id);
+  if (i === -1) return res.status(404).json({ error: 'Usuario no encontrado.' });
+  const [u] = users.splice(i, 1);
+  saveUsers();
+  revokeUserSessions(u.id);
+  res.json({ ok: true });
 });
 
 // GET all projects
+// Agents only receive their own rows (same name matching as My Dashboard: accents, Bryan = Brian)
+const normPerson = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\bbryan\b/g, 'brian').trim();
+function ownRows(req, rows, field) {
+  if (!isAgentSession(req.session)) return rows;
+  const me = normPerson(req.session.agent);
+  return rows.filter(r => normPerson(r[field]) === me);
+}
+
 app.get('/api/projects', (req, res) => {
-  res.json(readProjects());
+  res.json(ownRows(req, readProjects(), 'lider'));
 });
 
 // PUT replace all projects (full save)
@@ -233,7 +435,7 @@ app.delete('/api/projects/:id', (req, res) => {
 
 // GET all leaders
 app.get('/api/leaders', (req, res) => {
-  res.json(readLeaders());
+  res.json(ownRows(req, readLeaders(), 'name'));
 });
 
 // POST add leader
@@ -316,7 +518,7 @@ function writeLeaderTasks(data) {
 }
 
 // GET all tareas
-app.get('/api/tareas-rutinarias', (req, res) => res.json(readTareas()));
+app.get('/api/tareas-rutinarias', (req, res) => res.json(ownRows(req, readTareas(), 'encargado')));
 
 // POST add tarea
 app.post('/api/tareas-rutinarias', (req, res) => {
@@ -721,7 +923,10 @@ app.get('/api/tickets', async (req, res) => {
   const tendencia = weeklyTrend(tickets, hasta);
 
   const at = Math.min(listR.value.at, metR.status === 'fulfilled' ? metR.value.at : Infinity);
-  res.json({
+  // Team reference for comparisons (lower median of the agents' first-response medians)
+  const frts = por_agente.map(a => a.primera_respuesta_mediana_min).filter(x => x != null).sort((x, y) => x - y);
+  const equipo_ref = { primera_respuesta_mediana_min: frts.length ? frts[Math.floor((frts.length - 1) / 2)] : null };
+  const payload = {
     configured: true,
     stale: listR.value.stale || (metR.status === 'fulfilled' && metR.value.stale),
     fetchedAt: new Date(at).toISOString(),
@@ -740,12 +945,20 @@ app.get('/api/tickets', async (req, res) => {
     por_agente,
     primera_respuesta_disponible: !!met,
     tendencia,
-  });
+    equipo_ref,
+  };
+  if (isAgentSession(req.session)) {
+    // An agent sees their own tickets plus team-level aggregates for comparison, nothing per other agent
+    payload.por_agente = por_agente.filter(a => a.name === req.session.agent);
+    payload.agentes = [req.session.agent];
+    delete payload.ahora; delete payload.tendencia; delete payload.periodo_anterior;
+  }
+  res.json(payload);
 });
 
 // ── Ticket detail ──
-// Metadata comes from the cached (already public) ticket list. The conversation (message text,
-// requester names) comes from leer_ticket and is only returned to a logged-in admin.
+// Metadata comes from the cached ticket list; the conversation (message text, requester names)
+// comes from leer_ticket. An agent can only open tickets assigned to them.
 // Only tickets inside the dashboard scope (mailbox + configured agents or unassigned) can be read.
 const FS_WEB_URL = (process.env.FREESCOUT_WEB_URL || '').replace(/\/+$/, '');
 const detailCache = new Map(); // numero → { data, at }
@@ -772,7 +985,9 @@ app.get('/api/tickets/detalle/:numero', async (req, res) => {
   };
   const base = { configured: true, ticket, freescout_url: FS_WEB_URL ? `${FS_WEB_URL}/search?q=${numero}` : null };
 
-  if (!getSession(req)) return res.json({ ...base, requiere_login: true, conversacion: null });
+  if (!req.session) return res.json({ ...base, requiere_login: true, conversacion: null });
+  if (isAgentSession(req.session) && ticket.responsable !== req.session.agent)
+    return res.status(404).json({ error: 'Este ticket no está asignado a ti.' });
 
   try {
     let e = detailCache.get(numero);
@@ -857,6 +1072,7 @@ app.get('/api/tickets/alarmas', async (req, res) => {
     return out.sort((a, b) => (b.espera_horas_laborales || 0) - (a.espera_horas_laborales || 0));
   };
 
+  const mine = list => isAgentSession(req.session) ? list.filter(x => x.agente === req.session.agent) : list;
   res.json({
     configured: true,
     fecha: today,
@@ -865,10 +1081,10 @@ app.get('/api/tickets/alarmas', async (req, res) => {
     umbral_critico_dias: ALARM_CRIT_DAYS,
     metas,
     reporte_disponible: !!rep,
-    sin_primera_respuesta: fromReport('sin_primera_respuesta', metas && metas.primera_respuesta),
-    sin_contestar: fromReport('sin_contestar', metas && metas.respuestas_siguientes),
-    sin_responsable,
-    demorados,
+    sin_primera_respuesta: mine(fromReport('sin_primera_respuesta', metas && metas.primera_respuesta)),
+    sin_contestar: mine(fromReport('sin_contestar', metas && metas.respuestas_siguientes)),
+    sin_responsable: isAgentSession(req.session) ? [] : sin_responsable,
+    demorados: mine(demorados),
   });
 });
 
@@ -965,6 +1181,7 @@ app.get('/api/tickets/calidad', async (req, res) => {
   alarmas.sin_contestar.sort(byWait);
   alarmas.sin_primera_respuesta.sort(byWait);
 
+  const own = isAgentSession(req.session) ? (x => x.agente === req.session.agent) : (() => true);
   res.json({
     configured: true,
     stale: reports.some(r => r.stale),
@@ -986,10 +1203,11 @@ app.get('/api/tickets/calidad', async (req, res) => {
       cerrados_sin_respuesta: sum(a => a.cerrados_sin_respuesta),
       al_vuelo: sum(a => a.al_vuelo),
     },
-    agentes,
-    malas: uniqueBy(agentes.flatMap(a => a.malas), m => `${m.numero ?? m.ticket}:${m.agente}`),
-    peores_primera: uniqueBy(agentes.flatMap(a => a.peores).sort((x, y) => y.horas_laborales - x.horas_laborales), w => w.numero).slice(0, 5),
-    alarmas,
+    // Team totals above stay (comparison); per-agent detail is limited to the viewer when it is an agent
+    agentes: isAgentSession(req.session) ? agentes.filter(a => a.name === req.session.agent) : agentes,
+    malas: uniqueBy(agentes.flatMap(a => a.malas), m => `${m.numero ?? m.ticket}:${m.agente}`).filter(own),
+    peores_primera: uniqueBy(agentes.flatMap(a => a.peores).sort((x, y) => y.horas_laborales - x.horas_laborales), w => w.numero).filter(own).slice(0, 5),
+    alarmas: { sin_contestar: alarmas.sin_contestar.filter(own), sin_primera_respuesta: alarmas.sin_primera_respuesta.filter(own) },
     alarmas_fecha: latest.generado || null,
   });
 });
