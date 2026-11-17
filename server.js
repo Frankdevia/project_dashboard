@@ -22,14 +22,44 @@ const SESSION_MS = SESSION_DAYS * 24 * 60 * 60 * 1000;
 function readJsonFile(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
 }
-function writeJsonFile(file, data) {
+// ── Automatic backups ──
+// Before a data file is overwritten, its current content is copied to
+// data/backups/<file>/<timestamp>.json. Identical consecutive copies are skipped and only the
+// newest BACKUP_KEEP per file are kept.
+const BACKUP_DIR = path.join(__dirname, 'data', 'backups');
+const BACKUP_KEEP = Number(process.env.BACKUP_KEEP) || 200;
+const backupStamp = () => new Date().toISOString().replace(/[:.]/g, '-');
+function listBackups(name) {
+  const dir = path.join(BACKUP_DIR, name);
+  try { return fs.readdirSync(dir).filter(f => /^[\dT-]+Z\.json$/.test(f)).sort(); } catch { return []; }
+}
+function backupFile(file) {
+  try {
+    if (!fs.existsSync(file)) return;
+    const name = path.basename(file, '.json');
+    const dir = path.join(BACKUP_DIR, name);
+    fs.mkdirSync(dir, { recursive: true });
+    const current = fs.readFileSync(file);
+    const existing = listBackups(name);
+    const last = existing[existing.length - 1];
+    if (last && current.equals(fs.readFileSync(path.join(dir, last)))) return;
+    fs.writeFileSync(path.join(dir, `${backupStamp()}.json`), current, { mode: 0o600 });
+    const all = listBackups(name);
+    for (const f of all.slice(0, Math.max(0, all.length - BACKUP_KEEP))) fs.unlinkSync(path.join(dir, f));
+  } catch (e) {
+    console.error('No se pudo respaldar', file, e.message);
+  }
+}
+// Atomic write (temp file + rename) with an optional backup of the previous content
+function writeJsonFile(file, data, { backup = false, mode = 0o644 } = {}) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
+  if (backup) backupFile(file);
   const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode });
   fs.renameSync(tmp, file);
 }
 let users = readJsonFile(USERS_FILE, []);
-function saveUsers() { writeJsonFile(USERS_FILE, users); }
+function saveUsers() { writeJsonFile(USERS_FILE, users, { backup: true, mode: 0o600 }); }
 
 function hashPassword(pass) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -53,7 +83,7 @@ const tokenKey = token => crypto.createHash('sha256').update(token).digest('hex'
 function saveSessions() {
   const now = Date.now();
   for (const [k, v] of sessions) if (!v.exp || v.exp < now) sessions.delete(k);
-  try { writeJsonFile(SESSIONS_FILE, Object.fromEntries(sessions)); } catch (e) { console.error('No se pudieron guardar las sesiones:', e.message); }
+  try { writeJsonFile(SESSIONS_FILE, Object.fromEntries(sessions), { mode: 0o600 }); } catch (e) { console.error('No se pudieron guardar las sesiones:', e.message); }
 }
 function revokeUserSessions(userId) {
   for (const [k, v] of sessions) if (v.userId === userId) sessions.delete(k);
@@ -199,7 +229,7 @@ function readProjects() {
 
 // Write projects
 function writeProjects(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  writeJsonFile(DATA_FILE, data, { backup: true });
 }
 
 // Read leaders
@@ -213,7 +243,7 @@ function readLeaders() {
 
 // Write leaders
 function writeLeaders(data) {
-  fs.writeFileSync(LEADERS_FILE, JSON.stringify(data, null, 2));
+  writeJsonFile(LEADERS_FILE, data, { backup: true });
 }
 
 // ── Auth endpoints ──
@@ -379,6 +409,9 @@ app.get('/api/projects', (req, res) => {
 // PUT replace all projects (full save)
 app.put('/api/projects', (req, res) => {
   if (!Array.isArray(req.body)) return res.status(400).json({ error: 'Expected array' });
+  // Replacing the whole list with nothing is almost always a mistake
+  const current = readProjects().length;
+  if (!req.body.length && current) return res.status(400).json({ error: `La lista nueva está vacía; no se reemplazan los ${current} proyectos existentes.` });
   writeProjects(req.body);
   res.json({ ok: true, count: req.body.length });
 });
@@ -502,20 +535,63 @@ function readTareas() {
   try { return JSON.parse(fs.readFileSync(TAREAS_FILE, 'utf8')); } catch { return []; }
 }
 function writeTareas(data) {
-  fs.writeFileSync(TAREAS_FILE, JSON.stringify(data, null, 2));
+  writeJsonFile(TAREAS_FILE, data, { backup: true });
 }
 function readCategorias() {
   try { return JSON.parse(fs.readFileSync(CATEGORIAS_FILE, 'utf8')); } catch { return []; }
 }
 function writeCategorias(data) {
-  fs.writeFileSync(CATEGORIAS_FILE, JSON.stringify(data, null, 2));
+  writeJsonFile(CATEGORIAS_FILE, data, { backup: true });
 }
 function readLeaderTasks() {
   try { return JSON.parse(fs.readFileSync(LEADER_TASKS_FILE, 'utf8')); } catch { return []; }
 }
 function writeLeaderTasks(data) {
-  fs.writeFileSync(LEADER_TASKS_FILE, JSON.stringify(data, null, 2));
+  writeJsonFile(LEADER_TASKS_FILE, data, { backup: true });
 }
+
+// ── Backups: list and restore (admin only; the access middleware blocks agents) ──
+const BACKUP_SETS = () => ({
+  proyectos: { file: DATA_FILE, label: 'Proyectos' },
+  lideres: { file: LEADERS_FILE, label: 'Líderes' },
+  tareas: { file: TAREAS_FILE, label: 'Tareas rutinarias' },
+  categorias: { file: CATEGORIAS_FILE, label: 'Categorías de tareas' },
+  'tareas-lider': { file: LEADER_TASKS_FILE, label: 'Tareas de líder' },
+});
+const countItems = file => { const d = readJsonFile(file, null); return Array.isArray(d) ? d.length : null; };
+const stampToIso = f => f.replace('.json', '').replace(/T(\d\d)-(\d\d)-(\d\d)-(\d+)Z/, 'T$1:$2:$3.$4Z');
+
+app.get('/api/backups', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const sets = BACKUP_SETS();
+  res.json({
+    conservadas_por_archivo: BACKUP_KEEP,
+    conjuntos: Object.entries(sets).map(([id, { file, label }]) => {
+      const name = path.basename(file, '.json');
+      return {
+        id, label, actual: countItems(file),
+        copias: listBackups(name).reverse().slice(0, 30).map(f => ({
+          archivo: f, fecha: stampToIso(f), elementos: countItems(path.join(BACKUP_DIR, name, f)),
+        })),
+        total_copias: listBackups(name).length,
+      };
+    }),
+  });
+});
+
+app.post('/api/backups/restore', (req, res) => {
+  const { conjunto, archivo } = req.body || {};
+  const set = BACKUP_SETS()[conjunto];
+  if (!set) return res.status(400).json({ error: 'Conjunto de datos desconocido.' });
+  const name = path.basename(set.file, '.json');
+  if (!listBackups(name).includes(archivo)) return res.status(404).json({ error: 'Copia no encontrada.' });
+  const data = readJsonFile(path.join(BACKUP_DIR, name, archivo), null);
+  if (!Array.isArray(data)) return res.status(400).json({ error: 'La copia no es válida.' });
+  // The current state is backed up first, so a restore can itself be undone
+  writeJsonFile(set.file, data, { backup: true });
+  console.log(`Restaurada copia ${name}/${archivo} (${data.length} elementos) por ${req.session.user}`);
+  res.json({ ok: true, elementos: data.length });
+});
 
 // GET all tareas
 app.get('/api/tareas-rutinarias', (req, res) => res.json(ownRows(req, readTareas(), 'encargado')));

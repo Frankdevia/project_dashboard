@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Usuarios</title>
+<title>Administración</title>
 <script>
   (function () {
     try {
@@ -154,6 +154,10 @@
   .reset-row td { background: var(--tint); }
   .reset-form { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   .reset-form .pw { flex: 1; min-width: 220px; }
+  .bk-bar { display: flex; align-items: end; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+  .bk-bar label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.75rem; color: var(--text-muted); min-width: 220px; }
+  td.num { font-family: var(--font-mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+  td.num .down { color: var(--red); }
   .missing { margin-top: 0.9rem; font-size: 0.78rem; color: var(--amber); }
   .empty { color: var(--text-muted); font-size: 0.85rem; padding: 0.5rem 0; }
   @media (max-width: 760px) {
@@ -173,8 +177,8 @@
 
 <div class="header">
   <div class="header-left">
-    <h1>Usuarios</h1>
-    <p>Acceso de los agentes a su My Dashboard. Cada agente solo ve su propio dashboard.</p>
+    <h1>Administración</h1>
+    <p>Usuarios de los agentes (cada uno solo ve su My Dashboard) y copias de seguridad de los datos.</p>
   </div>
   <div class="nav-links">
     <a href="index.html">
@@ -219,7 +223,7 @@
     </a>
     <a href="usuarios.html" class="active">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-      Usuarios
+      Admin
     </a>
     <button class="nav-btn" id="btnTheme" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"></button>
   </div>
@@ -241,6 +245,17 @@
     <div class="panel-head"><span class="eyebrow" id="listTitle">Usuarios de agentes</span><span class="hint" id="adminNote"></span></div>
     <div id="list"><div class="empty">Cargando…</div></div>
     <div class="msg" id="lMsg" role="status"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="bkTitle">
+    <div class="panel-head"><span class="eyebrow" id="bkTitle">Copias de seguridad</span><span class="hint" id="bkNote"></span></div>
+    <p class="hint" style="margin-bottom:0.9rem">Antes de cada cambio el servidor guarda una copia del estado anterior. Restaurar una copia también respalda el estado actual, así que se puede deshacer.</p>
+    <div class="bk-bar">
+      <label>Datos <select id="bkSet"></select></label>
+      <span class="hint" id="bkNow"></span>
+    </div>
+    <div id="bkList"><div class="empty">Cargando…</div></div>
+    <div class="msg" id="bkMsg" role="status"></div>
   </section>
 </div>
 
@@ -374,6 +389,46 @@ document.getElementById('list').addEventListener('submit', async e => {
   } catch (err) { setMsg('lMsg', err.message); }
 });
 
+// ── Backups ──
+let backups = null;
+let bkSet = 'proyectos';
+async function loadBackups() {
+  try { backups = await api('GET', '/api/backups'); renderBackups(); }
+  catch (e) { document.getElementById('bkList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function renderBackups() {
+  const sel = document.getElementById('bkSet');
+  sel.innerHTML = backups.conjuntos.map(c => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join('');
+  sel.value = bkSet;
+  const c = backups.conjuntos.find(x => x.id === bkSet) || backups.conjuntos[0];
+  document.getElementById('bkNote').textContent = `Se conservan las últimas ${backups.conservadas_por_archivo} por tipo de dato.`;
+  document.getElementById('bkNow').textContent = `Ahora: ${c.actual ?? '—'} elemento${c.actual === 1 ? '' : 's'} · ${c.total_copias} copia${c.total_copias === 1 ? '' : 's'}`;
+  const list = document.getElementById('bkList');
+  if (!c.copias.length) { list.innerHTML = '<div class="empty">Todavía no hay copias: se crean con el primer cambio.</div>'; return; }
+  list.innerHTML = `<table><thead><tr><th>Fecha de la copia</th><th>Elementos</th><th></th></tr></thead><tbody>${c.copias.map(b => {
+    const diff = c.actual != null && b.elementos != null ? b.elementos - c.actual : 0;
+    return `<tr data-file="${esc(b.archivo)}">
+      <td>${esc(fmtDate(b.fecha))}</td>
+      <td class="num">${b.elementos ?? '—'}${diff ? ` <span class="${diff > 0 ? '' : 'down'}">(${diff > 0 ? '+' : ''}${diff} vs. ahora)</span>` : ''}</td>
+      <td><div class="acts"><button class="btn" data-restore>Restaurar</button></div></td>
+    </tr>`;
+  }).join('')}</tbody></table>${c.total_copias > c.copias.length ? `<div class="hint" style="margin-top:0.6rem">Se muestran las ${c.copias.length} más recientes.</div>` : ''}`;
+}
+document.getElementById('bkSet').addEventListener('change', e => { bkSet = e.target.value; setMsg('bkMsg', ''); renderBackups(); });
+document.getElementById('bkList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-restore]'); if (!b) return;
+  const file = b.closest('tr').dataset.file;
+  const c = backups.conjuntos.find(x => x.id === bkSet);
+  const copy = c.copias.find(x => x.archivo === file);
+  if (!confirm(`¿Restaurar ${c.label} a la copia del ${fmtDate(copy.fecha)} (${copy.elementos} elementos)?\n\nHoy hay ${c.actual}. El estado actual se guarda como copia antes de restaurar.`)) return;
+  b.disabled = true;
+  try {
+    const r = await api('POST', '/api/backups/restore', { conjunto: bkSet, archivo: file });
+    setMsg('bkMsg', `${c.label} restaurado: ${r.elementos} elementos.`, true);
+    await loadBackups();
+  } catch (err) { setMsg('bkMsg', err.message); b.disabled = false; }
+});
+
 // ── Theme toggle ──
 function themeIcon(t) {
   return t === 'light'
@@ -393,6 +448,7 @@ function toggleTheme() {
 applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
 
 loadUsers();
+loadBackups();
 </script>
 </body>
 </html>
