@@ -302,7 +302,6 @@
   .chip b { color: var(--text); font-family: var(--font-mono); font-weight: 600; }
   .chip.alert { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
   .chip.alert b { color: var(--red); }
-  .acard-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.1fr); }
   .acol { padding: 1.1rem 1.4rem; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
   .acol + .acol { border-left: 1px solid var(--border); }
   .acol-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
@@ -397,13 +396,28 @@
 
   /* Assigned routine tasks, card style */
   .atasks { border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem 1.3rem; display: flex; flex-direction: column; gap: 0.8rem; }
-  .atasks.collapsed .tasks-body { display: none; }
   /* Alarms */
   .aalarms.has { box-shadow: inset 3px 0 0 var(--red); }
-  .aalarms.collapsed .alarms-body { display: none; }
   .atab .cnt.al { background: color-mix(in srgb, var(--red) 18%, transparent); border-color: color-mix(in srgb, var(--red) 40%, transparent); color: var(--red); font-weight: 600; }
   .atab.on .cnt.al { background: var(--red); color: #fff; border-color: transparent; }
   .alarms-body { display: flex; flex-direction: column; gap: 0.6rem; }
+  /* Section tabs inside the agent card */
+  .stabs { display: flex; flex-wrap: wrap; column-gap: 0.25rem; padding: 0 1.1rem; border-bottom: 1px solid var(--border); }
+  .stab { display: inline-flex; align-items: center; gap: 0.45rem; flex-shrink: 0; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 0.8rem 0.6rem 0.7rem; color: var(--text-muted); font-family: var(--font-body); font-size: 0.86rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
+  .stab:hover { color: var(--text); }
+  .stab.on { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }
+  .stab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px 6px 0 0; }
+  .scnt { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 600; background: var(--tint); border: 1px solid var(--border); border-radius: 999px; padding: 0.02rem 0.45rem; color: var(--text-muted); }
+  .stab.on .scnt { color: var(--text); }
+  .scnt.al { color: var(--red); background: color-mix(in srgb, var(--red) 14%, transparent); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+  .spanel > section:last-child { border-bottom: none; }
+  /* Each section has the full card, so lists grow with the page instead of scrolling inside */
+  .spanel .tlist, .spanel .plist, .spanel .alarm-list { max-height: none; overflow: visible; }
+  /* Re-renders (section, filter, refresh) should not replay the entry animation */
+  #root.shown .acard { animation: none; }
+  .asec { border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem 1.2rem; display: flex; flex-direction: column; gap: 0.7rem; }
+  .spanel .pmetrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 700px) { .spanel .pmetrics { grid-template-columns: 1fr 1fr; } .stabs { padding: 0 0.5rem; } }
   .aalarms, .agoals { border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem 1.2rem; display: flex; flex-direction: column; gap: 0.7rem; }
   .alarm-list { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; max-height: 360px; overflow-y: auto; scrollbar-width: thin; }
   .alarm-list li { display: grid; grid-template-columns: 62px 130px minmax(0, 1fr) auto; gap: 0.6rem; align-items: baseline; padding: 0.45rem 0.6rem; border: 1px solid var(--border); border-left: 3px solid var(--sev, var(--text-dim)); border-radius: var(--radius-sm); background: var(--tint); font-size: 0.8rem; }
@@ -421,9 +435,6 @@
   .gtable .g-num { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
   .gtable .tt-name { width: 26%; }
   .gtable .pill { white-space: nowrap; }
-  .atasks.collapsed { padding-bottom: 1.1rem; }
-  .tasks-toggle { margin-left: 0.6rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-family: var(--font-body); font-size: 0.72rem; padding: 0.2rem 0.7rem; cursor: pointer; }
-  .tasks-toggle:hover { color: var(--text); border-color: var(--border-focus); }
   .ttable { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
   .ttable th { text-align: left; font-family: var(--font-mono); font-size: 0.64rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); padding: 0 0.7rem 0.55rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
   .ttable td { padding: 0.65rem 0.7rem; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text); white-space: normal; }
@@ -456,7 +467,6 @@
   .dots i.on { background: var(--rail, var(--accent)); }
 
   @media (max-width: 960px) {
-    .acard-body { grid-template-columns: 1fr; }
     .acol + .acol { border-left: none; border-top: 1px solid var(--border); }
   }
   @media (max-width: 600px) { .acard-head, .acol { padding-left: 1rem; padding-right: 1rem; } }
@@ -629,12 +639,16 @@ const PRESETS = ['7', '30', '90', 'mes', 'mesant'];
 let selectedAgent = new URLSearchParams(location.search).get('agente') || null;
 // Filters persist across agent tabs
 let projFilter = 'todos';
-let tasksOpen = true;
-let alarmsOpen = true;
+// Section tab inside the agent card; kept in the URL (?vista=) and remembered per viewer
+const SECTIONS = ['tareas', 'tickets', 'proyectos', 'alarmas', 'desempeno'];
+let section = (() => {
+  const v = new URLSearchParams(location.search).get('vista');
+  if (SECTIONS.includes(v)) return v;
+  try { const m = localStorage.getItem('mydash.vista'); if (SECTIONS.includes(m)) return m; } catch (e) {}
+  return 'tareas';
+})();
 let alarmFilter = 'todas';
 let alarms = null; // /api/tickets/alarmas
-try { alarmsOpen = localStorage.getItem('desempeno.alarmas') !== '0'; } catch (e) {}
-try { tasksOpen = localStorage.getItem('desempeno.tareas') !== '0'; } catch (e) {}
 let tkFilter = 'todos';
 // Same stages as the rest of the dashboard
 function projStage(p, today) {
@@ -653,6 +667,7 @@ function updateUrl() {
   // A preset is stored by name so a bookmark or a page left open keeps moving with the calendar
   const q = new URLSearchParams(preset ? { p: preset } : { desde: range.desde, hasta: range.hasta });
   if (selectedAgent && !document.body.classList.contains('agent-mode')) q.set('agente', selectedAgent);
+  if (section !== 'tareas') q.set('vista', section);
   history.replaceState(null, '', '?' + q);
 }
 function rangeFromUrl() {
@@ -763,11 +778,10 @@ function agentAlarmsHtml(myAlarms) {
   if (alarms.error) return `<section class="aalarms"><div class="acol-head"><span class="eyebrow">Alarmas</span></div><div class="muted-note">Alarmas no disponibles: ${esc(alarms.error)}</div></section>`;
   const crit = myAlarms.filter(x => x.severidad === 'critica').length;
   const shown = myAlarms.filter(x => alarmFilter === 'todas' || x.tipo === alarmFilter);
-  return `<section class="aalarms${myAlarms.length ? ' has' : ''}${alarmsOpen ? '' : ' collapsed'}">
+  return `<section class="aalarms${myAlarms.length ? ' has' : ''}">
     <div class="acol-head">
       <span class="eyebrow">Alarmas · ${myAlarms.length}</span>
-      <span class="acol-sum">${crit ? `<b style="color:var(--red)">${crit} crítica${crit === 1 ? '' : 's'}</b> · ` : ''}${myAlarms.length ? 'más graves primero' : ''}
-        ${myAlarms.length ? `<button class="tasks-toggle alarms-toggle" aria-expanded="${alarmsOpen}">${alarmsOpen ? 'Ocultar' : 'Mostrar'}</button>` : ''}</span>
+      <span class="acol-sum">${crit ? `<b style="color:var(--red)">${crit} crítica${crit === 1 ? '' : 's'}</b> · ` : ''}${myAlarms.length ? 'más graves primero' : ''}</span>
     </div>
     <div class="alarms-body">
       ${myAlarms.length ? `${alarmChips(myAlarms)}${shown.length ? alarmRows(shown, false) : '<div class="muted-note">Sin alarmas de este tipo.</div>'}` : '<div class="muted-note">Sin alarmas para este agente.</div>'}
@@ -840,6 +854,21 @@ function goalsHtml(goals, waitingQuality) {
   </section>`;
 }
 
+function sectionTabs(items) {
+  return `<div class="stabs" role="tablist" aria-label="Secciones">${items.map(x => `
+    <button class="stab${x.id === section ? ' on' : ''}" role="tab" id="st-${x.id}" data-sec="${x.id}" aria-selected="${x.id === section}" aria-controls="sp-${x.id}" tabindex="${x.id === section ? 0 : -1}">
+      ${esc(x.label)}${x.n != null ? `<span class="scnt${x.alert ? ' al' : ''}"${x.title ? ` title="${esc(x.title)}"` : ''}>${x.n}</span>` : ''}
+    </button>`).join('')}</div>`;
+}
+function selectSection(id, focus) {
+  if (!SECTIONS.includes(id) || id === section) return;
+  section = id;
+  try { localStorage.setItem('mydash.vista', id); } catch (e) {}
+  updateUrl();
+  if (lastRender) renderCards(lastRender.t, lastRender.q);
+  if (focus) { const b = document.getElementById('st-' + id); if (b) b.focus(); }
+}
+
 function projectsFor(name) {
   const n = normName(name);
   return projects.filter(p => normName(p.lider) === n);
@@ -888,6 +917,8 @@ function renderCards(t, q) {
   };
   const qBy = new Map(qOk ? q.agentes.map(a => [a.name, a]) : []);
 
+  const agentMode = document.body.classList.contains('agent-mode');
+  const my = agentMode; // an agent reads "Mis …"; the admin reads plain section names
   const entries = t.por_agente.map(a => {
     const qa = qBy.get(a.name);
     const ps = projectsFor(a.name);
@@ -951,13 +982,12 @@ function renderCards(t, q) {
     const ts = tasksFor(a.name).slice().sort((x, y) =>
       (x.categoria || '').localeCompare(y.categoria || '', 'es') || (y.expertisePoints || 0) - (x.expertisePoints || 0) || (x.nombre || '').localeCompare(y.nombre || '', 'es'));
     const tsCats = new Set(ts.map(x => x.categoria).filter(Boolean)).size;
-    const tasksHtml = `<section class="atasks${tasksOpen ? '' : ' collapsed'}">
+    const tasksHtml = `<section class="atasks">
       <div class="acol-head">
         <span class="eyebrow">Tareas asignadas · ${ts.length}</span>
-        <span class="acol-sum">${ts.length ? `${tsCats} categoría${tsCats === 1 ? '' : 's'} · <a href="tareas-rutinarias.html" style="color:var(--accent);text-decoration:none">Ver en Tareas Rutinarias →</a>` : ''}
-          ${ts.length ? `<button class="tasks-toggle" aria-expanded="${tasksOpen}" aria-controls="tasksBody">${tasksOpen ? 'Ocultar' : 'Mostrar'}</button>` : ''}</span>
+        <span class="acol-sum">${ts.length ? `${tsCats} categoría${tsCats === 1 ? '' : 's'}${agentMode ? '' : ' · <a href="tareas-rutinarias.html" style="color:var(--accent);text-decoration:none">Ver en Tareas Rutinarias →</a>'}` : ''}</span>
       </div>
-      ${ts.length ? `<div class="tbl-wrap tasks-body" id="tasksBody"><table class="ttable">
+      ${ts.length ? `<div class="tbl-wrap"><table class="ttable">
         <thead><tr><th>Tarea</th><th>Categoría</th><th title="Nivel de experticia">Nivel</th><th>Descripción</th></tr></thead>
         <tbody>${ts.map(x => {
           const lvl = Math.max(1, Math.min(5, Number(x.expertisePoints) || 1));
@@ -998,22 +1028,29 @@ function renderCards(t, q) {
           </div>
         </div>
       </div>
-      ${tasksHtml}
-      ${agentAlarmsHtml(myAlarms)}
-      ${goalsHtml(buildGoals(a, qa, team, myAlarms, (qOk && q.metas) || (alarms && alarms.metas)), !qOk && q == null)}
-      <div class="acard-body">
-        <div class="acol">
+      ${sectionTabs([
+        { id: 'tareas', label: my ? 'Mis tareas asignadas' : 'Tareas asignadas', n: ts.length },
+        { id: 'tickets', label: my ? 'Mis tickets' : 'Tickets', n: tk.length, title: 'Tickets abiertos' },
+        { id: 'proyectos', label: my ? 'Mis proyectos' : 'Proyectos', n: active.length, title: 'Proyectos activos' },
+        { id: 'alarmas', label: my ? 'Mis alarmas' : 'Alarmas', n: myAlarms.length, alert: myAlarms.length > 0 },
+        { id: 'desempeno', label: my ? 'Mi desempeño' : 'Desempeño' },
+      ])}
+      <div class="spanel" role="tabpanel" id="sp-${section}" aria-labelledby="st-${section}">
+        ${section === 'tareas' ? tasksHtml : ''}
+        ${section === 'tickets' ? `<section class="asec">
+          <div class="acol-head"><span class="eyebrow">Tickets</span><span class="acol-sum">abiertos + cerrados del ${esc(fmtDay(t.rango.desde))} al ${esc(fmtDay(t.rango.hasta))} · clic para ver el detalle</span></div>
+          ${tkHtml}
+        </section>` : ''}
+        ${section === 'proyectos' ? `<section class="asec">
           <div class="acol-head"><span class="eyebrow">Proyectos</span><span class="acol-sum">${avg == null ? '' : `Avance promedio ${avg}%`}</span></div>
           ${projHtml}
-        </div>
-        <div class="acol">
-          <div class="acol-head"><span class="eyebrow">Tickets</span><span class="acol-sum">abiertos + cerrados en el rango</span></div>
-          ${tkHtml}
-        </div>
-        <div class="acol">
-          <div class="acol-head"><span class="eyebrow">Desempeño</span><span class="acol-sum">${esc(fmtDay(t.rango.desde))} – ${esc(fmtDay(t.rango.hasta))}</span></div>
+        </section>` : ''}
+        ${section === 'alarmas' ? agentAlarmsHtml(myAlarms) : ''}
+        ${section === 'desempeno' ? `<section class="asec">
+          <div class="acol-head"><span class="eyebrow">Indicadores</span><span class="acol-sum">${esc(fmtDay(t.rango.desde))} – ${esc(fmtDay(t.rango.hasta))} · comparado con el equipo</span></div>
           ${perfHtml}
-        </div>
+        </section>
+        ${goalsHtml(buildGoals(a, qa, team, myAlarms, (qOk && q.metas) || (alarms && alarms.metas)), !qOk && q == null)}` : ''}
       </div>
     </article>`;
     return { name: a.name, html, abiertos: tk.length, alarmas: myAlarms.length, alerta: late.length > 0 || old > 0 || myAlarms.some(x => x.severidad === 'critica') };
@@ -1028,7 +1065,8 @@ function renderCards(t, q) {
       ${avatar(e.name)}<span>${esc(e.name)}</span><span class="cnt" title="Tickets abiertos">${e.abiertos}</span>${e.alarmas ? `<span class="cnt al" title="Alarmas">${e.alarmas}</span>` : (e.alerta ? '<span class="wdot" aria-label="con alertas"></span>' : '')}
     </button>`).join('')}</div>`;
 
-  lastRender = { t, q };
+  if (lastRender && lastRender.agent === selectedAgent) root.classList.add('shown'); else root.classList.remove('shown');
+  lastRender = { t, q, agent: selectedAgent };
   root.innerHTML = `${tabs}<div class="acards">${current ? current.html : ''}</div>
     <div class="notes" style="margin-top:1rem">
       Proyectos y tareas: los del dashboard cuyo líder o encargado coincide con el agente. Tickets: buzón ${esc(t.buzon)}.
@@ -1051,26 +1089,10 @@ function selectAgent(name) {
   if (btn) { btn.focus(); btn.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
 }
 document.getElementById('root').addEventListener('click', e => {
-  const atg = e.target.closest('.alarms-toggle');
-  if (atg) {
-    alarmsOpen = !alarmsOpen;
-    try { localStorage.setItem('desempeno.alarmas', alarmsOpen ? '1' : '0'); } catch (err) {}
-    atg.closest('.aalarms').classList.toggle('collapsed', !alarmsOpen);
-    atg.setAttribute('aria-expanded', String(alarmsOpen));
-    atg.textContent = alarmsOpen ? 'Ocultar' : 'Mostrar';
-    return;
-  }
+  const st = e.target.closest('.stab');
+  if (st) { selectSection(st.dataset.sec, true); return; }
   const af = e.target.closest('.fchip[data-af]');
   if (af && !af.disabled) { alarmFilter = af.dataset.af; if (lastRender) renderCards(lastRender.t, lastRender.q); return; }
-  const tg = e.target.closest('.tasks-toggle');
-  if (tg) {
-    tasksOpen = !tasksOpen;
-    try { localStorage.setItem('desempeno.tareas', tasksOpen ? '1' : '0'); } catch (err) {}
-    tg.closest('.atasks').classList.toggle('collapsed', !tasksOpen);
-    tg.setAttribute('aria-expanded', String(tasksOpen));
-    tg.textContent = tasksOpen ? 'Ocultar' : 'Mostrar';
-    return;
-  }
   const row = e.target.closest('.tk-row');
   if (row) { openTicket(row.dataset.ticket); return; }
   const f = e.target.closest('.fchip');
@@ -1085,6 +1107,13 @@ document.getElementById('root').addEventListener('click', e => {
 document.getElementById('root').addEventListener('keydown', e => {
   const row = e.target.closest && e.target.closest('.tk-row');
   if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openTicket(row.dataset.ticket); return; }
+  if (e.target.closest('.stab') && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+    e.preventDefault();
+    const i = SECTIONS.indexOf(section);
+    const j = e.key === 'Home' ? 0 : e.key === 'End' ? SECTIONS.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + SECTIONS.length) % SECTIONS.length;
+    selectSection(SECTIONS[j], true);
+    return;
+  }
   if (!e.target.closest('.atab') || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
   const tabs = [...document.querySelectorAll('.atab')];
   const i = tabs.findIndex(b => b.dataset.agent === selectedAgent);
